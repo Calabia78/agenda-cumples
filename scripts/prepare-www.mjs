@@ -7,10 +7,8 @@ rmSync('www', { recursive: true, force: true });
 mkdirSync('www/fonts', { recursive: true });
 
 const fonts = [
-  ['@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2', 'bricolage.woff2'],
-  ['@fontsource-variable/schibsted-grotesk/files/schibsted-grotesk-latin-wght-normal.woff2', 'schibsted.woff2'],
-  ['@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2', 'plexmono-400.woff2'],
-  ['@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2', 'plexmono-500.woff2'],
+  ['@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2', 'bitter.woff2'],
+  ['@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2', 'sourcesans.woff2'],
 ];
 for (const [from, to] of fonts) {
   const p = `node_modules/${from}`;
@@ -18,10 +16,8 @@ for (const [from, to] of fonts) {
   copyFileSync(p, `www/fonts/${to}`);
 }
 writeFileSync('www/fonts/fonts.css', `
-@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:200 800;font-display:swap;src:url(bricolage.woff2) format('woff2-variations'),url(bricolage.woff2) format('woff2')}
-@font-face{font-family:'Schibsted Grotesk';font-style:normal;font-weight:400 900;font-display:swap;src:url(schibsted.woff2) format('woff2-variations'),url(schibsted.woff2) format('woff2')}
-@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(plexmono-400.woff2) format('woff2')}
-@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(plexmono-500.woff2) format('woff2')}
+@font-face{font-family:'Bitter';font-style:normal;font-weight:100 900;font-display:swap;src:url(bitter.woff2) format('woff2-variations'),url(bitter.woff2) format('woff2')}
+@font-face{font-family:'Source Sans 3';font-style:normal;font-weight:200 900;font-display:swap;src:url(sourcesans.woff2) format('woff2-variations'),url(sourcesans.woff2) format('woff2')}
 `);
 
 let html = readFileSync('src/index.html', 'utf8');

@@ -44,7 +44,7 @@ public class AgendaNativePlugin extends Plugin {
 
     /** Fondo de ventana e iconos de las barras del sistema según el aspecto elegido. */
     static void applyAppearance(Activity activity, boolean dark) {
-        activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(dark ? 0xFF121010 : 0xFFF6F3F1));
+        activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(dark ? 0xFF121010 : 0xFFF7F7F6));
         androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView());
         c.setAppearanceLightStatusBars(!dark);
         c.setAppearanceLightNavigationBars(!dark);

@@ -8,7 +8,7 @@
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_cake",
-      "iconColor": "#C81F1A"
+      "iconColor": "#D90028"
     },
     "SystemBars": {
       "insetsHandling": "disable"
