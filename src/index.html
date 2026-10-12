@@ -58,6 +58,13 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .kb .stick{position:static}
 .stick{position:sticky;top:0;z-index:20;background:var(--bg);margin:-1rem 0 0;padding:1rem 0 .55rem}
 .stick .search{margin:.75rem 0 0}
+.more{margin-top:.5rem}
+.more summary{cursor:pointer;font-weight:600;color:var(--accent);padding:.4rem 0}
+.avisos{list-style:none;margin:.2rem 0 0;padding:0}
+.avisos li{display:flex;justify-content:space-between;gap:.75rem;padding:.45rem 0}
+.avisos .d{font-weight:600}
+.avisos .t{text-align:right;font-variant-numeric:tabular-nums}
+.avisos small{display:block;color:var(--muted)}
 .search{display:flex;align-items:center;gap:.6rem;background:var(--surface);border-radius:1rem;box-shadow:var(--shadow);padding:0 .9rem;margin:1rem 0 .25rem;color:var(--muted)}
 .search input{flex:1;min-width:0;border:0;background:transparent;color:var(--fg);padding:.8rem 0;outline:none}
 .search:focus-within{outline:2px solid var(--accent)}
@@ -321,15 +328,16 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.12';
+const APP_VERSION='0.5.13';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
-const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
+const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
+const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
 const STALE_DAYS=30;
 function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){state.storageOK=false;return false;}}
 function probeStorage(){try{localStorage.setItem('cumples-clientes:probe','1');localStorage.removeItem('cumples-clientes:probe');return true;}catch(e){return false;}}
 function loadTpl(t){
-  if(t&&typeof t.text==='string')return {text:t.text};
+  if(t&&typeof t.text==='string')return {text:OLD_DEFAULTS.indexOf(t.text)>=0?DEFAULT_MSG:t.text};
   if(t&&Array.isArray(t.items)&&t.items[t.active|0])return {text:t.items[t.active|0].text};
   return {text:DEFAULT_MSG};
 }
@@ -661,11 +669,26 @@ function viewAjustes(){
     if(m.ok)h+='<p style="margin:.75rem 0 0"><button class="btn primary" data-act="back">Ver los cumpleaños de hoy</button></p>';
   }
   h+='</section>';
-  const plan=planNotifications(contactsAll(),state.sent,new Date(),21).slice(0,6);
-  const fmtWhen=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
-  h+='<section class="panel"><h3>'+(NATIVE?'Avisos del móvil':'Avisos del móvil (vista previa)')+'</h3><p class="muted small">'+(NATIVE?'La app te avisa':'Así te avisaría la app instalada en el móvil')+': a las 9:00 y a las 16:00 entre semana, el viernes a las 13:30 con el resumen del fin de semana, y el sábado y el domingo a las 10:00.'+(NATIVE?' Abajo ves los próximos.':' Aquí solo puedes ver cuáles serían los próximos.')+'</p>'
-    +(NATIVE?'<p id="notif-status" class="muted small">Comprobando…</p><p class="muted small">Si algún día no te llega un aviso, en Ajustes del móvil → Aplicaciones → Cumples → Batería, elige «Sin restricciones».</p>':'')
-    +(plan.length?'<ul class="manual-list">'+plan.map(x=>{const w=fmtWhen.format(new Date(x.when));return '<li style="display:block"><b>'+esc(w.charAt(0).toUpperCase()+w.slice(1))+'</b><br><span class="muted small">'+esc(x.body)+'</span></li>';}).join('')+'</ul>':'<p class="muted small">No hay avisos previstos en las próximas semanas.</p>')
+  const plan=planNotifications(contactsAll(),state.sent,new Date(),21);
+  const fmtDay=new Intl.DateTimeFormat('es-ES',{weekday:'short',day:'numeric',month:'short'});
+  const hhmm=function(ms){const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  const days=[],byDay={};
+  plan.forEach(function(x){
+    const k=Math.floor(x.id/10);let g=byDay[k];
+    if(!g){g=byDay[k]={when:x.when,times:[],n:0,w:0};days.push(g);}
+    g.times.push(hhmm(x.when));
+    if(x.type==='finde')g.w=x.count;else if(!g.n)g.n=x.count;
+  });
+  const dayRows=days.slice(0,6).map(function(g){
+    const lab=fmtDay.format(new Date(g.when)).replace(/\./g,'');
+    const sub=[g.n?g.n+' por felicitar':'',g.w?'fin de semana: '+g.w:''].filter(Boolean).join(' · ');
+    return '<li><span class="d">'+esc(lab.charAt(0).toUpperCase()+lab.slice(1))+'</span><span class="t">'+esc(g.times.join(' · '))+'<small>'+esc(sub)+'</small></span></li>';
+  }).join('');
+  h+='<section class="panel"><h3>'+(NATIVE?'Avisos del móvil':'Avisos del móvil (vista previa)')+'</h3>'
+    +'<p class="muted small">Entre semana, a las 9:00 y a las 16:00. El viernes, a las 13:30, el resumen del fin de semana. Sábado y domingo, a las 10:00.</p>'
+    +(NATIVE?'<p id="notif-status" class="muted small">Comprobando…</p>':'')
+    +'<details class="more"><summary>Próximos avisos</summary>'+(dayRows?'<ul class="avisos">'+dayRows+'</ul>':'<p class="muted small">No hay avisos previstos en las próximas semanas.</p>')+'</details>'
+    +(NATIVE?'<details class="more"><summary>¿No te llegan los avisos?</summary><p class="muted small">En Ajustes del móvil → Aplicaciones → Cumples → Batería, elige «Sin restricciones».</p></details>':'')
     +'</section>';
   h+='<section class="panel"><h3>Probar con tu propio móvil</h3><p class="muted small">Añade un contacto a mano: ponte a ti con la fecha de hoy y pulsa Felicitar en la pantalla principal. Los contactos añadidos a mano se conservan al actualizar la lista.</p>'
     +'<div class="form-grid"><label>Nombre<input id="m-n" class="field" autocomplete="off"></label><label>Apellidos<input id="m-a" class="field" autocomplete="off"></label>'
