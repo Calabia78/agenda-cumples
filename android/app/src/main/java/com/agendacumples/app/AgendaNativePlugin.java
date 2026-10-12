@@ -142,11 +142,20 @@ public class AgendaNativePlugin extends Plugin {
             call.reject("Enlace no válido");
             return;
         }
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("La app no está en primer plano");
+            return;
+        }
         // Android pide un permiso especial para instalar APK desde una app.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getContext().getPackageManager().canRequestPackageInstalls()) {
-            Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getContext().getPackageName()));
-            s.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(s);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.getPackageManager().canRequestPackageInstalls()) {
+            try {
+                Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.getPackageName()));
+                activity.startActivity(s);
+            } catch (Exception e) {
+                call.reject("No se pudo abrir el permiso de instalación: " + e);
+                return;
+            }
             JSObject r = new JSObject();
             r.put("needsPermission", true);
             call.resolve(r);
@@ -156,11 +165,11 @@ public class AgendaNativePlugin extends Plugin {
             @Override
             public void run() {
                 try {
-                    File dir = new File(getContext().getCacheDir(), "updates");
+                    File dir = new File(activity.getCacheDir(), "updates");
                     if (!dir.exists()) dir.mkdirs();
                     File[] old = dir.listFiles();
                     if (old != null) for (File f : old) f.delete();
-                    File apk = new File(dir, "cumples-update.apk");
+                    final File apk = new File(dir, "cumples-update.apk");
 
                     HttpURLConnection conn = null;
                     String current = url;
@@ -175,6 +184,7 @@ public class AgendaNativePlugin extends Plugin {
                             conn.disconnect();
                             if (loc == null || !loc.startsWith("https://")) throw new Exception("Redirección no válida");
                             current = loc;
+                            conn = null;
                             continue;
                         }
                         if (code != 200) throw new Exception("El servidor respondió " + code);
@@ -197,16 +207,28 @@ public class AgendaNativePlugin extends Plugin {
                         in.close();
                         conn.disconnect();
                     }
-                    Uri apkUri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
-                    Intent install = new Intent(Intent.ACTION_VIEW);
-                    install.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                    install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    getContext().startActivity(install);
-                    JSObject r = new JSObject();
-                    r.put("started", true);
-                    call.resolve(r);
+                    if (total < 100000) throw new Exception("Descarga incompleta (" + total + " bytes)");
+                    final Uri apkUri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk);
+                    final long size = total;
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                Intent install = new Intent(Intent.ACTION_VIEW);
+                                install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                activity.startActivity(install);
+                                JSObject r = new JSObject();
+                                r.put("started", true);
+                                r.put("bytes", size);
+                                call.resolve(r);
+                            } catch (Exception e) {
+                                call.reject("No se pudo abrir el instalador: " + e);
+                            }
+                        }
+                    });
                 } catch (Exception e) {
-                    call.reject("No se pudo descargar la actualización: " + e.getMessage());
+                    call.reject("No se pudo descargar la actualización: " + e);
                 }
             }
         }).start();

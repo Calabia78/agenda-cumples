@@ -317,7 +317,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.1';
+const APP_VERSION='0.5.2';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -443,13 +443,19 @@ async function checkUpdate(silent){
 }
 async function installUpdate(){
   if(!NATIVE||!AG||!state.upd||!state.upd.url)return;
-  state.upd.installing=true;if(state.view==='ajustes')render();
-  toast('Descargando la actualización…');
+  const u=state.upd;
+  u.installing=true;u.msg='';
+  if(state.view==='ajustes')render();else toast('Descargando la actualización…');
   try{
-    const r=await AG.installApk({url:state.upd.url});
-    if(r&&r.needsPermission)toast('Permite instalar desde esta app y vuelve a pulsar Actualizar');
-  }catch(e){toast('No se pudo descargar la actualización. Inténtalo de nuevo.');}
-  if(state.upd)state.upd.installing=false;if(state.view==='ajustes')render();
+    const r=await AG.installApk({url:u.url});
+    if(r&&r.needsPermission)u.msg='Android necesita tu permiso: activa «Permitir de esta fuente», vuelve a la app y pulsa otra vez.';
+    else u.msg='Descargada. Si no ves la pantalla de instalación, pulsa «Instalar» en el aviso que ha salido.';
+  }catch(e){
+    u.msg='No se pudo instalar desde la app ('+((e&&e.message)||e)+'). Te abro la descarga en el navegador.';
+    try{AG.openUrl({url:u.url});}catch(x){}
+  }
+  u.installing=false;
+  if(state.view==='ajustes')render();
 }
 async function bootNative(){
   if(!NATIVE||!LN)return;
@@ -662,7 +668,7 @@ function viewAjustes(){
     const u=state.upd||{};
     let line='';
     if(u.busy)line='<span class="muted small">Buscando…</span>';
-    else if(u.newer)line='<span class="msg-ok">Hay una versión nueva: '+esc(u.ver)+'.</span> <button class="btn primary" data-act="install-update"'+(u.installing?' disabled':'')+'>'+(u.installing?'Descargando…':'Descargar e instalar')+'</button><span class="muted small" style="display:block;margin-top:.4rem">Tus datos se conservan al actualizar. Si Android te lo pide, permite instalar desde esta app.</span>';
+    else if(u.newer)line='<span class="msg-ok">Hay una versión nueva: '+esc(u.ver)+'.</span> <button class="btn primary" data-act="install-update"'+(u.installing?' disabled':'')+'>'+(u.installing?'Descargando…':'Descargar e instalar')+'</button><span class="muted small" style="display:block;margin-top:.4rem">Tus datos se conservan al actualizar. Si Android te lo pide, permite instalar desde esta app.</span>'+(u.msg?'<span class="msg-err" style="display:block;margin-top:.4rem">'+esc(u.msg)+'</span>':'');
     else if(u.uptodate)line='<span class="msg-ok">Tienes la última versión.</span>';
     else if(u.error)line='<span class="msg-err">No he podido comprobarlo. Revisa la conexión.</span>';
     h+='<section class="panel"><h3>Actualizaciones</h3><p class="muted small">Versión instalada: '+APP_VERSION+'</p><p style="margin:.4rem 0 .6rem">'+line+'</p><button class="btn" data-act="check-update"'+(u.busy?' disabled':'')+'>Buscar actualización</button></section>';
