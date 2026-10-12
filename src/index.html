@@ -97,13 +97,16 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .tag.ok{background:var(--accent-soft);color:var(--accent)}
 .mini{background:none;border:0;padding:0;color:var(--accent);font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .acts{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
-.wa{flex:1 1 9rem;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.8rem;padding:.55rem 1rem;border-radius:.9rem;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:1rem;text-decoration:none;white-space:nowrap}
+.wa{flex:1 1 6.5rem;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.8rem;padding:.55rem 1rem;border-radius:.9rem;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:1rem;text-decoration:none;white-space:nowrap}
 .wa.soft{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
 .wa.off{background:var(--surface-2);color:var(--muted);box-shadow:none}
 .nophone{color:var(--muted);font-size:.85rem}
-.done-btn{min-height:2.8rem;padding:.5rem 1rem;border-radius:.9rem;border:1.5px solid var(--line);background:transparent;font-weight:600;cursor:pointer}
+.done-btn{min-height:2.8rem;padding:.5rem .85rem;border-radius:.9rem;border:1.5px solid var(--line);background:transparent;font-weight:600;cursor:pointer}
 .row.opened .done-btn:not(.on){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .done-btn.on{color:var(--muted)}
+.del-btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--late);background:transparent;color:var(--late);font-weight:600;cursor:pointer}
+.acts.nw{flex-wrap:nowrap;gap:.4rem}.acts.nw .wa{flex:1 1 0;min-width:0;padding:.55rem .4rem;gap:.35rem}.acts.nw .del-btn,.acts.nw .done-btn{flex:none}
+.del-btn:active{background:var(--late);color:var(--accent-fg)}
 
 .editor{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:.8rem;display:grid;gap:.7rem}
 .editor label,.form-grid label{display:grid;gap:.25rem;font-size:.85rem;color:var(--muted);font-weight:600}
@@ -399,10 +402,10 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.7.2';
+const APP_VERSION='0.7.3';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
-const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
-const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
+const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
+const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
 const STALE_DAYS=30;
 function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){state.storageOK=false;return false;}}
@@ -570,6 +573,7 @@ function previewText(text){return buildMessage(text,msgName({n:'JOSÉ LUIS',a:''
 function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c);}
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+const ICON_TRASH=SVG('<path d="M4.5 7h15"/><path d="M9.5 7V4.8h5V7"/><path d="M6.5 7l.9 12.2c.1 1 .9 1.8 1.9 1.8h5.4c1 0 1.8-.8 1.9-1.8L17.5 7"/><path d="M10 11v6M14 11v6"/>',18);
 const ICON_CAKE=SVG('<path d="M12 2.8c.8.9.8 1.7 0 2.4-.8-.7-.8-1.5 0-2.4z"/><path d="M12 6.2v2.2"/><rect x="6" y="8.4" width="12" height="4.2" rx="1.4"/><rect x="3.6" y="12.6" width="16.8" height="7.6" rx="1.8"/><path d="M3.8 16.4c1.7 1.2 2.8 1.2 4 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.4 0"/>');
 const ICON_SET=SVG('<path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/>',22);
 const ICON_SEARCH=SVG('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.2 4.2"/>',20);
@@ -596,7 +600,7 @@ function editorHTML(c){
 function exclHTML(c){
   const id=esc(c.i);
   return '<div class="editor"><p><b>¿Seguro que '+esc(fullName(c))+' no es cliente vuestro?</b></p>'
-    +'<p class="muted small">Se quitará de la lista y no se volverá a avisar, ni aunque aparezca en una lista nueva. Podrás recuperarlo en Ajustes → Clientes descartados.</p>'
+    +'<p class="muted small">Se eliminará de la lista y no se volverá a avisar, ni aunque aparezca en una lista nueva. Podrás recuperarlo en Ajustes → Clientes descartados.</p>'
     +'<div class="btns"><button class="btn danger" data-act="excl-yes" data-id="'+id+'">Sí, no es cliente nuestro</button><button class="btn" data-act="excl-no">Cancelar</button></div></div>';
 }
 function rowHTML(o,opts){
@@ -610,8 +614,7 @@ function rowHTML(o,opts){
   if(wa)phoneHtml='<span class="phone">'+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
   else if(lf)phoneHtml='<span class="phone">'+esc(fmtPhone(lf))+'</span><span>fijo</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
-  const editBtn=c.demo?'':'<button class="mini" data-act="edit" data-id="'+eid+'">Apodo / otro nº</button>'
-    +((c.demo||c.manual)?'':'<button class="mini" data-act="excl-ask" data-id="'+eid+'">No es cliente nuestro</button>');
+  const editBtn=c.demo?'':'<button class="mini" data-act="edit" data-id="'+eid+'">Apodo / otro nº</button>';
   const soft=opts.soft||o.diff>0;
   let action;
   if(c.demo)action='<span class="wa off">Ejemplo</span>';
@@ -625,9 +628,10 @@ function rowHTML(o,opts){
   }
   if(done&&!c.demo&&(wa||lf))action='<span class="wa off">✓ Felicitado</span>';
   const doneBtn=opts.showDone===false?'':'<button class="done-btn'+(done?' on':'')+'" data-act="done" data-id="'+eid+'" data-year="'+o.year+'" title="Marcar como felicitado">'+(done?'Deshacer':'Hecho')+'</button>';
+  const delBtn=(c.demo||c.manual)?'':'<button class="del-btn" data-act="excl-ask" data-id="'+eid+'" title="No es cliente nuestro: eliminar de la lista">'+ICON_TRASH+'Eliminar</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+editBtn+'</div></div>'
-    +'<div class="acts">'+action+doneBtn+'</div>'
+    +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+delBtn+doneBtn+'</div>'
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
