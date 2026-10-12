@@ -12,6 +12,7 @@ import android.provider.Settings;
 import android.util.Base64;
 
 import androidx.activity.result.ActivityResult;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSObject;
@@ -41,6 +42,34 @@ public class AgendaNativePlugin extends Plugin {
 
     private static final int MAX_FILE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_APK_BYTES = 80 * 1024 * 1024;
+
+    static int nightModeFor(String mode) {
+        if ("dark".equals(mode)) return AppCompatDelegate.MODE_NIGHT_YES;
+        if ("light".equals(mode)) return AppCompatDelegate.MODE_NIGHT_NO;
+        return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+    }
+
+    @PluginMethod
+    public void setTheme(final PluginCall call) {
+        final String mode = call.getString("mode", "auto");
+        getContext().getSharedPreferences("cfg", android.content.Context.MODE_PRIVATE).edit().putString("theme", mode).apply();
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.resolve();
+            return;
+        }
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                int target = nightModeFor(mode);
+                if (AppCompatDelegate.getDefaultNightMode() != target) {
+                    AppCompatDelegate.setDefaultNightMode(target);
+                    activity.recreate();
+                }
+                call.resolve();
+            }
+        });
+    }
 
     @PluginMethod
     public void pickFile(PluginCall call) {
