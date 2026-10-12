@@ -412,7 +412,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.9.6';
+const APP_VERSION='0.10.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -447,12 +447,13 @@ const state={
   over:(savedS.over&&typeof savedS.over==='object')?savedS.over:{},
   sent:(savedS.sent&&typeof savedS.sent==='object')?savedS.sent:{},
   excl:(savedS.excl&&typeof savedS.excl==='object')?savedS.excl:{},
+  nowa:(savedS.nowa&&typeof savedS.nowa==='object')?savedS.nowa:{},
   confirmExcl:null,
   tpl:loadTpl(savedS.tpl),
   q:'',shown:40,
   editing:null,opened:{},importMsg:null,pending:null,backupOut:'',armed:false
 };
-function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,imported:state.imported});scheduleSync();}
+function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,imported:state.imported});scheduleSync();}
 function contactsAll(){return state.contacts.concat(state.manual);}
 
 /* ---------- Puente nativo (solo en la APK; en el navegador no hace nada) ---------- */
@@ -584,6 +585,7 @@ function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c)
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 const ICON_PENCIL=SVG('<path d="M4 20h4L19.2 8.8a2.1 2.1 0 0 0 0-3L18.2 4.8a2.1 2.1 0 0 0-3 0L4 16z"/><path d="M13.5 6.5l4 4"/>',18);
+const ICON_SMS=SVG('<path d="M4 5.5h16v10.5H9.5L5.5 19.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>',18);
 const ICON_PHONE=SVG('<path d="M6.6 3.5h2.6l1.4 3.6-1.8 1.2a11 11 0 0 0 5.9 5.9l1.2-1.8 3.6 1.4v2.6a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/>',15);
 const ICON_CANDLE=SVG('<path d="M12 2.4c1.2 1.4 1.2 2.6 0 3.6-1.2-1-1.2-2.2 0-3.6z"/><rect x="8.8" y="8" width="6.4" height="11" rx="1.3"/><path d="M6.5 20.6h11"/>',14);
 // Años de nacimiento con dos cifras: de 00 a PIVOT_YY son 20xx; el resto, 19xx.
@@ -618,7 +620,8 @@ function editorHTML(c){
   return '<div class="editor">'
     +'<label>Felicitar como<input id="ed-alias" class="field" value="'+esc(ov.alias||'')+'" placeholder="'+esc(msgName(c))+'" autocomplete="off"></label>'
     +'<label>Felicitar en otro número<input id="ed-tel" class="field" type="tel" inputmode="tel" value="'+esc(ov.tel?fmtPhone(ov.tel):'')+'" placeholder="Móvil alternativo" autocomplete="off"></label>'
-    +(smsTo(c)?'<p style="margin:0"><a class="mini sms" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">¿No tiene WhatsApp? Enviarle un SMS</a></p>':'')
+    +(smsTo(c)?'<p style="margin:0"><a class="mini sms" data-id="'+id+'" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">¿No tiene WhatsApp? Enviarle un SMS</a></p>':'')
+    +(state.nowa[c.i]?'<p style="margin:0"><button class="mini" data-act="nowa-off" data-id="'+id+'">Volver a usar WhatsApp con este cliente</button></p>':'')
     +'<p class="muted small">El texto se puede cambiar en WhatsApp antes de enviarlo. Esto se guarda solo en este dispositivo y se conserva al actualizar la lista.</p>'
     +'<div class="btns"><button class="btn primary" data-act="ed-save" data-id="'+id+'">Guardar</button><button class="btn" data-act="ed-cancel">Cancelar</button>'
     +((ov.alias||ov.tel)?'<button class="btn" data-act="ed-clear" data-id="'+id+'">Quitar apodo y número</button>':'')+'</div></div>';
@@ -637,13 +640,15 @@ function rowHTML(o,opts){
   if(done)cls.push('done');
   if(state.opened[id])cls.push('opened');
   let phoneHtml='';
-  if(wa)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
+  if(wa)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'')+(state.nowa[id]&&!c.demo?'<span class="tag">sin WhatsApp</span>':'');
   else if(lf)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(lf))+'</span><span>fijo</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
   const soft=opts.soft||o.diff>0;
   let action;
   if(c.demo)action='<span class="wa off">Ejemplo</span>';
-  else if(wa){
+  else if(wa&&state.nowa[id]){
+    action='<a class="wa sms'+(soft?' soft':'')+'" href="'+esc(smsLink(wa,buildMessage(state.tpl.text,greetName(c))))+'" data-id="'+eid+'">'+ICON_SMS+'Enviar SMS</a>';
+  }else if(wa){
     const text=buildMessage(state.tpl.text,greetName(c));
     action='<a class="wa'+(soft?' soft':'')+'" href="'+esc(waLink(wa,text))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">'+ICON_CAKE+'Felicitar</a>';
   }else{
@@ -658,7 +663,7 @@ function rowHTML(o,opts){
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
     +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
-    +((state.opened[id]&&!c.demo&&smsTo(c))?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">Enviarle un SMS</a></p>':'')
+    +((state.opened[id]&&!c.demo&&smsTo(c)&&!state.nowa[id])?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" data-id="'+eid+'" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">Enviarle un SMS</a></p>':'')
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
@@ -681,11 +686,13 @@ function homeData(){
   const occ=occurrences(contactsAll(),t.ms,t.y,3,Math.max(7,k));
   const unsent=o=>state.sent[o.c.i]!==o.year;
   const late=occ.filter(o=>o.diff<0&&unsent(o));
+  // Los atrasados que acabas de abrir se quedan a la vista hasta cerrar la app, por si hay que enviar un SMS.
+  const lateShow=occ.filter(o=>o.diff<0&&(unsent(o)||state.opened[o.c.i]));
   const today=occ.filter(o=>o.diff===0);
   const ahead=k>0?occ.filter(o=>o.diff>=1&&o.diff<=k):[];
   const next=occ.filter(o=>o.diff>k&&o.diff<=7);
   const pendT=today.filter(unsent).length,pendA=ahead.filter(unsent).length;
-  return {t:t,k:k,late:late,today:today,ahead:ahead,next:next,pendT:pendT,pendA:pendA,pend:late.length+pendT};
+  return {t:t,k:k,late:late,lateShow:lateShow,today:today,ahead:ahead,next:next,pendT:pendT,pendA:pendA,pend:late.length+pendT};
 }
 function viewHome(){
   const d=homeData(),t=d.t;
@@ -731,7 +738,7 @@ function renderHomeBody(){
     el.innerHTML=h;return;
   }
   const d=homeData();let h='';
-  if(d.late.length)h+='<h2 class="sec late">Sin felicitar de días anteriores <span class="count">'+d.late.length+'</span></h2>'+listHTML(d.late);
+  if(d.lateShow.length)h+='<h2 class="sec late">Sin felicitar de días anteriores <span class="count">'+d.lateShow.length+'</span></h2>'+listHTML(d.lateShow);
   if(d.today.length)h+='<h2 class="sec">Hoy <span class="count">'+d.today.length+'</span></h2>'+listHTML(d.today);
   if(d.ahead.length){
     h+='<h2 class="sec">'+(d.t.dow===5?'Este fin de semana':'Mañana, '+dayName(1))+' <span class="count">'+d.ahead.length+'</span></h2>'
@@ -904,13 +911,14 @@ function saveEditor(id){
   if(alias||tel)state.over[id]={alias:alias,tel:tel};else delete state.over[id];
   state.editing=null;persist();render();toast('Guardado');
 }
-function backupText(){return JSON.stringify({v:4,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl});}
+function backupText(){return JSON.stringify({v:4,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa});}
 function restoreBackup(raw){
   let o;
   try{o=JSON.parse(raw);}catch(e){toast('El texto no es una copia válida');return;}
   if(!o||[1,2,3,4].indexOf(o.v)<0||typeof o.sent!=='object'){toast('El texto no es una copia válida');return;}
   state.sent=o.sent||{};
   if(o.v>=2){state.over=(o.over&&typeof o.over==='object')?o.over:{};state.manual=Array.isArray(o.manual)?o.manual:[];}
+  if(o.v>=4)state.nowa=(o.nowa&&typeof o.nowa==='object')?o.nowa:{};
   if(o.v>=4){state.excl=(o.excl&&typeof o.excl==='object')?o.excl:{};state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);}
   if(o.tpl)state.tpl=loadTpl(o.tpl);
   persist();render();toast('Copia restaurada');
@@ -918,8 +926,8 @@ function restoreBackup(raw){
 
 /* ---------- Eventos ---------- */
 document.addEventListener('click',function(e){
-  const wa=e.target.closest('a.wa');
-  if(wa){state.opened[wa.dataset.id]=true;const row=wa.closest('.row');if(row)row.classList.add('opened');
+  const wa=e.target.closest('a.wa, a.sms');
+  if(wa){state.opened[wa.dataset.id]=true;if(wa.classList.contains('sms')){state.nowa[wa.dataset.id]=true;persist();}const row=wa.closest('.row');if(row)row.classList.add('opened');
     // Al pulsar Felicitar se da por felicitado (se puede deshacer). Los de días futuros no se marcan.
     const db=row&&row.querySelector('.done-btn');
     if(db&&!row.classList.contains('is-future')&&state.sent[wa.dataset.id]!==+db.dataset.year){
@@ -927,8 +935,6 @@ document.addEventListener('click',function(e){
       setTimeout(function(){render();toast('Marcado como felicitado');},500);    }else setTimeout(render,500);
     if(NATIVE&&AG){e.preventDefault();AG.openUrl({url:wa.href}).catch(function(){toast('No he podido abrir WhatsApp');});}
     return;}
-  const sms=e.target.closest('a.sms');
-  if(sms&&NATIVE&&AG){e.preventDefault();AG.openUrl({url:sms.href}).catch(function(){toast('No he podido abrir los mensajes');});return;}
   const t=e.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
   if(act==='settings')go('ajustes');
@@ -953,13 +959,14 @@ document.addEventListener('click',function(e){
   else if(act==='ed-save')saveEditor(t.dataset.id);
   else if(act==='ed-cancel'){state.editing=null;render();}
   else if(act==='ed-clear'){delete state.over[t.dataset.id];state.editing=null;persist();render();toast('Quitado');}
+  else if(act==='nowa-off'){delete state.nowa[t.dataset.id];persist();render();toast('Vuelve a usarse WhatsApp con este cliente');}
   else if(act==='excl-ask'){state.confirmExcl=t.dataset.id;state.editing=null;render();}
   else if(act==='excl-no'){state.confirmExcl=null;render();}
   else if(act==='excl-yes'){
     const id=t.dataset.id,c=state.contacts.find(x=>x.i===id);
     if(c){
       state.excl[id]=c;state.contacts=state.contacts.filter(x=>x.i!==id);
-      delete state.sent[id];delete state.over[id];
+      delete state.sent[id];delete state.over[id];delete state.nowa[id];
       lsSet(KEY_C,state.contacts);
     }
     state.confirmExcl=null;persist();render();toast('Descartado. No se volverá a avisar');
@@ -990,7 +997,7 @@ document.addEventListener('click',function(e){
   else if(act==='wipe'){
     if(!state.armed){state.armed=true;render();setTimeout(function(){if(state.armed){state.armed=false;if(state.view==='ajustes')render();}},5000);return;}
     try{localStorage.removeItem(KEY_C);localStorage.removeItem(KEY_S);}catch(err){}
-    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.backupOut='';state.armed=false;
+    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.nowa={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.backupOut='';state.armed=false;
     state.tpl={text:DEFAULT_MSG};
     scheduleSync();render();toast('Datos borrados');
   }
