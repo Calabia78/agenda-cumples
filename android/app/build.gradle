@@ -24,9 +24,9 @@ android {
             def ksPath = System.getenv('KEYSTORE_PATH')
             if (ksPath) {
                 storeFile file(ksPath)
-                storePassword System.getenv('KEYSTORE_PASSWORD')
+                storePassword System.getenv('KEYSTORE_PASSWORD').trim()
                 keyAlias System.getenv('KEY_ALIAS') ?: 'agenda'
-                keyPassword System.getenv('KEYSTORE_PASSWORD')
+                keyPassword System.getenv('KEYSTORE_PASSWORD').trim()
             }
         }
     }
