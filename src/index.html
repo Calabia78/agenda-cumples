@@ -319,7 +319,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.4';
+const APP_VERSION='0.5.5';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -365,7 +365,9 @@ const NATIVE=!!(CAP&&typeof CAP.isNativePlatform==='function'&&CAP.isNativePlatf
 const REPO='Calabia78/agenda-cumples';
 const KEY_N='cumples-clientes:avisos:v1';
 let LN=null,AG=null;
-if(NATIVE){try{LN=CAP.registerPlugin('LocalNotifications');AG=CAP.registerPlugin('AgendaNative');}catch(e){}}
+// El puente nativo de Capacitor (sin empaquetador) solo ofrece nativePromise: llamamos a los plugins con él.
+function nativePlugin(name){return new Proxy({},{get:function(t,m){if(typeof m!=='string'||m==='then')return undefined;return function(a){return CAP.nativePromise(name,m,a||{});};}});}
+if(NATIVE&&typeof CAP.nativePromise==='function'){LN=nativePlugin('LocalNotifications');AG=nativePlugin('AgendaNative');}
 let syncTimer=0,notifPerm='unknown';
 function scheduleSync(){if(!NATIVE||!LN)return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNotifications,500);}
 async function notifPermission(ask){
@@ -444,8 +446,9 @@ async function checkUpdate(silent){
   else if(state.view==='home'&&!state.q&&state.upd.newer)render();
 }
 async function installUpdate(){
-  if(!NATIVE||!AG||!state.upd||!state.upd.url)return;
+  if(!NATIVE||!state.upd||!state.upd.url)return;
   const u=state.upd;
+  if(!AG){u.msg='No está disponible la instalación desde la app; te abro la descarga en el navegador.';render();try{window.location.href=u.url;}catch(e){}return;}
   u.installing=true;u.msg='';
   if(state.view==='ajustes')render();else toast('Descargando la actualización…');
   try{
