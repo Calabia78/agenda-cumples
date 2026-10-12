@@ -55,6 +55,14 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .hero-sub strong{display:block;font-size:1.15rem}
 .hero-sub small{display:block;opacity:.92;font-size:.88rem}
 
+.stick{position:sticky;top:3.1rem;z-index:20;background:var(--bg);padding:.1rem 0 .4rem;margin-top:.9rem}
+.stick .search{margin:0}
+.topbar{position:absolute;left:-1rem;right:-1rem;bottom:100%;height:3.1rem;display:flex;align-items:center;gap:.65rem;padding:0 .75rem 0 1.1rem;background:linear-gradient(135deg,var(--brand-a),var(--brand-b));color:var(--on-brand);border-radius:0 0 1.1rem 1.1rem;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .15s}
+.topbar .tn{font-family:var(--font-display);font-weight:700;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.topbar .tt{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .icon-btn{width:2.2rem;height:2.2rem;border-radius:.7rem}
+.stick.stuck .topbar{opacity:1;pointer-events:auto}
+@media (prefers-reduced-motion:reduce){.topbar{transition:none}}
 .search{display:flex;align-items:center;gap:.6rem;background:var(--surface);border-radius:1rem;box-shadow:var(--shadow);padding:0 .9rem;margin:1rem 0 .25rem;color:var(--muted)}
 .search input{flex:1;min-width:0;border:0;background:transparent;color:var(--fg);padding:.8rem 0;outline:none}
 .search:focus-within{outline:2px solid var(--accent)}
@@ -317,7 +325,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.2';
+const APP_VERSION='0.5.3';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -556,6 +564,12 @@ function homeData(){
   const pendT=today.filter(unsent).length,pendA=ahead.filter(unsent).length;
   return {t:t,k:k,late:late,today:today,ahead:ahead,next:next,pendT:pendT,pendA:pendA,pend:late.length+pendT};
 }
+function updateStuck(){
+  const el=document.getElementById('stick');if(!el)return;
+  const top=parseFloat(getComputedStyle(el).top)||0;
+  el.classList.toggle('stuck',el.getBoundingClientRect().top<=top+1&&window.scrollY>20);
+}
+window.addEventListener('scroll',function(){requestAnimationFrame(updateStuck);},{passive:true});
 function viewHome(){
   const d=homeData(),t=d.t;
   const f=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'}).format(new Date(t.y,t.m-1,t.d));
@@ -574,9 +588,11 @@ function viewHome(){
     +'<button class="icon-btn" data-act="settings" aria-label="Ajustes">'+ICON_SET+'</button></div>'
     +'<div class="hero-count"><span class="big">'+(d.pend>0?d.pend:(d.today.length||d.ahead.length?'✓':'0'))+'</span><div class="hero-sub"><strong>'+esc(head)+'</strong><small>'+esc(sub)+'</small></div></div></section>'
     +banners()
-    +'<label class="search">'+ICON_SEARCH+'<input id="q" type="search" placeholder="Buscar cliente por nombre o teléfono" value="'+esc(state.q)+'" autocomplete="off" aria-label="Buscar cliente"></label>'
+    +'<div class="stick" id="stick"><div class="topbar"><span class="tn">'+esc(String(d.pend>0?d.pend:(d.today.length||d.ahead.length?'✓':'0')))+'</span><span class="tt">'+esc(head)+'</span><button class="icon-btn" data-act="settings" aria-label="Ajustes">'+ICON_SET+'</button></div>'
+    +'<label class="search">'+ICON_SEARCH+'<input id="q" type="search" placeholder="Buscar cliente por nombre o teléfono" value="'+esc(state.q)+'" autocomplete="off" aria-label="Buscar cliente"></label></div>'
     +'<div id="home-body"></div>';
   renderHomeBody();
+  updateStuck();
 }
 function filteredAll(){
   const q=stripAccents(state.q).toLowerCase().trim(),qd=q.replace(/\D/g,'');
