@@ -111,6 +111,13 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .acts.nw .edit-btn{flex:none}
 @media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
+.wa.off{flex:0 1 auto}
+.smsbar{position:fixed;left:.8rem;right:.8rem;bottom:calc(.8rem + env(safe-area-inset-bottom,0px));z-index:70;display:flex;align-items:center;gap:.6rem;background:var(--fg);color:var(--bg);padding:.6rem .6rem .6rem .95rem;border-radius:1rem;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:600}
+.smsbar[hidden]{display:none}
+.smsbar span{flex:1;font-size:.95rem;line-height:1.25}
+.smsbar button{min-height:2.6rem;border:0;border-radius:.8rem;padding:.4rem .9rem;font-weight:700;cursor:pointer}
+.smsbar .go{background:var(--bg);color:var(--fg)}
+.smsbar .x{background:transparent;color:inherit;opacity:.8;padding:.4rem .6rem;font-size:1.1rem}
 .sms-line{grid-column:1 / -1;margin:0;font-size:.9rem;color:var(--muted)}
 .sms-line a{color:var(--accent);font-weight:700}
 .phone{display:inline-flex;align-items:center;gap:.3rem}
@@ -412,7 +419,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.10.1';
+const APP_VERSION='0.11.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -662,7 +669,7 @@ function rowHTML(o,opts){
   const editBtn=c.demo?'':'<button class="edit-btn'+(state.editing===id?' on':'')+'" data-act="edit" data-id="'+eid+'" title="Apodo o número" aria-label="Editar apodo o número">'+ICON_PENCIL+(noNum||!wa?'<span>Añadir número</span>':'')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
-    +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
+    +'<div class="acts'+((delBtn&&!done&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
     +((state.opened[id]&&!c.demo&&smsTo(c)&&!state.nowa[id])?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" data-id="'+eid+'" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">Enviarle un SMS</a></p>':'')
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
@@ -927,7 +934,7 @@ function restoreBackup(raw){
 /* ---------- Eventos ---------- */
 document.addEventListener('click',function(e){
   const wa=e.target.closest('a.wa, a.sms');
-  if(wa){state.opened[wa.dataset.id]=true;if(wa.classList.contains('sms')){state.nowa[wa.dataset.id]=true;persist();}const row=wa.closest('.row');if(row)row.classList.add('opened');
+  if(wa){state.opened[wa.dataset.id]=true;if(wa.classList.contains('sms')){state.nowa[wa.dataset.id]=true;persist();hideSmsBar();}else pendingWa={id:wa.dataset.id,t:Date.now()};const row=wa.closest('.row');if(row)row.classList.add('opened');
     // Al pulsar Felicitar se da por felicitado (se puede deshacer). Los de días futuros no se marcan.
     const db=row&&row.querySelector('.done-btn');
     if(db&&!row.classList.contains('is-future')&&state.sent[wa.dataset.id]!==+db.dataset.year){
@@ -959,6 +966,16 @@ document.addEventListener('click',function(e){
   else if(act==='ed-save')saveEditor(t.dataset.id);
   else if(act==='ed-cancel'){state.editing=null;render();}
   else if(act==='ed-clear'){delete state.over[t.dataset.id];state.editing=null;persist();render();toast('Quitado');}
+  else if(act==='sms-x')hideSmsBar();
+  else if(act==='sms-go'){
+    const c=contactsAll().find(x=>x.i===t.dataset.id);
+    if(c){
+      state.nowa[c.i]=true;state.opened[c.i]=true;persist();
+      const url=smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c)));
+      hideSmsBar();render();
+      if(NATIVE&&AG)AG.openUrl({url:url}).catch(function(){toast('No he podido abrir los mensajes');});else location.href=url;
+    }
+  }
   else if(act==='nowa-off'){delete state.nowa[t.dataset.id];persist();render();toast('Vuelve a usarse WhatsApp con este cliente');}
   else if(act==='excl-ask'){state.confirmExcl=t.dataset.id;state.editing=null;render();}
   else if(act==='excl-no'){state.confirmExcl=null;render();}
@@ -1016,11 +1033,25 @@ document.addEventListener('change',function(e){
 // Con el teclado abierto en un campo de la lista, la cabecera deja de estar fija para dejar sitio.
 document.addEventListener('focusin',function(e){const t=e.target;if(t&&t.matches&&t.matches('input,textarea')&&!t.closest('.stick'))document.body.classList.add('kb');});
 document.addEventListener('focusout',function(){setTimeout(function(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea')&&!a.closest('.stick')))document.body.classList.remove('kb');},60);});
+/* Al volver de WhatsApp enseguida, se ofrece el SMS con un toque (la app no puede saber si el número tiene WhatsApp). */
+let pendingWa=null,smsBarTimer=0;
+function hideSmsBar(){const b=$('#smsbar');if(b)b.hidden=true;clearTimeout(smsBarTimer);pendingWa=null;}
+function maybeShowSmsBar(){
+  const pw=pendingWa;pendingWa=null;
+  if(!pw||Date.now()-pw.t>120000||state.view!=='home')return;
+  const c=contactsAll().find(x=>x.i===pw.id);
+  if(!c||c.demo||state.nowa[c.i]||!smsTo(c))return;
+  let b=$('#smsbar');
+  if(!b){b=document.createElement('div');b.id='smsbar';b.className='smsbar';b.setAttribute('role','status');document.body.appendChild(b);}
+  b.innerHTML='<span>¿No tiene WhatsApp '+esc(msgName(c))+'?</span><button class="go" data-act="sms-go" data-id="'+esc(c.i)+'">Enviar SMS</button><button class="x" data-act="sms-x" aria-label="Cerrar">✕</button>';
+  b.hidden=false;clearTimeout(smsBarTimer);smsBarTimer=setTimeout(hideSmsBar,25000);
+}
 let lastDay=todayInfo().ms;
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&todayInfo().ms!==lastDay){lastDay=todayInfo().ms;if(state.demo)state.contacts=demoContacts();render();}
-  if(document.visibilityState==='visible')scheduleSync();
+  if(document.visibilityState==='visible'){scheduleSync();maybeShowSmsBar();}
 });
+window.addEventListener('focus',function(){maybeShowSmsBar();});
 
 if(NATIVE)applyTheme(loadTheme());
 render();
