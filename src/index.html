@@ -412,7 +412,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.10.0';
+const APP_VERSION='0.10.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -641,7 +641,7 @@ function rowHTML(o,opts){
   if(state.opened[id])cls.push('opened');
   let phoneHtml='';
   if(wa)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'')+(state.nowa[id]&&!c.demo?'<span class="tag">sin WhatsApp</span>':'');
-  else if(lf)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(lf))+'</span><span>fijo</span>';
+  else if(lf)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(lf))+'</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
   const soft=opts.soft||o.diff>0;
   let action;
