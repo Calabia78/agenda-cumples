@@ -106,6 +106,7 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 
 .banner{background:var(--today-soft);border-radius:1rem;padding:.75rem .95rem;margin-top:1rem;display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;justify-content:space-between}
 .banner .mini{color:var(--fg)}
+.banner-links{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem}
 .empty{padding:1rem .25rem;color:var(--muted)}
 .field{width:100%;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:.75rem;padding:.65rem .8rem}
 textarea.field{resize:vertical;line-height:1.4}
@@ -319,7 +320,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.5';
+const APP_VERSION='0.5.6';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -541,10 +542,10 @@ function listHTML(items,opts){return '<ul class="list">'+items.map(o=>rowHTML(o,
 /* ---------- Pantalla principal ---------- */
 function banners(){
   let h='';
-  if(state.demo)h+='<div class="banner"><span><strong>Datos de ejemplo.</strong> Son contactos inventados para que veas cómo funciona.</span><button class="mini" data-act="settings">Cargar tu CSV o añadirte para probar</button></div>';
+  if(state.demo)h+='<div class="banner"><span><strong>Datos de ejemplo.</strong> Son contactos inventados para que veas cómo funciona.</span><span class="banner-links"><button class="mini" data-act="import-now">Cargar tu CSV</button><button class="mini" data-act="settings">Añadirte para probar</button></span></div>';
   else if(state.imported){
     const days=Math.floor((Date.now()-state.imported)/86400000);
-    if(days>=STALE_DAYS)h+='<div class="banner"><span>Hace '+days+' días que no actualizas la lista de clientes.</span><button class="mini" data-act="settings">Actualizar lista</button></div>';
+    if(days>=STALE_DAYS)h+='<div class="banner"><span>Hace '+days+' días que no actualizas la lista de clientes.</span><button class="mini" data-act="import-now">Actualizar lista</button></div>';
   }
   if(NATIVE&&state.upd&&state.upd.newer)h+='<div class="banner"><span><strong>Hay una versión nueva ('+esc(state.upd.ver)+').</strong></span><button class="mini" data-act="install-update">Actualizar</button></div>';
   if(!state.storageOK)h+='<div class="banner"><span><strong>Este navegador no guarda datos.</strong> Tendrás que cargar el CSV cada vez.</span></div>';
@@ -759,6 +760,7 @@ document.addEventListener('click',function(e){
   const t=e.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
   if(act==='settings')go('ajustes');
+  else if(act==='import-now'){go('ajustes');if(NATIVE&&AG)pickNative();else{const d=$('#drop');if(d)d.scrollIntoView({block:'center'});}}
   else if(act==='pick-file')pickNative();
   else if(act==='check-update')checkUpdate(false);
   else if(act==='install-update')installUpdate();
