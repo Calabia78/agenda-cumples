@@ -6,7 +6,7 @@
 /* Layout: una sola pantalla (máx. 44rem). Tarjeta superior con el número de pendientes en rojo corporativo; debajo, cada cliente es una tarjeta con su botón verde "Felicitar". Los ajustes viven en otra pantalla. */
 :root{
   --bg:#f7f7f6; --surface:#ffffff; --surface-2:#eeeeec; --fg:#3f3f3e; --muted:#6a6a68; --line:#e4e4e1;
-  --brand-a:#d90028; --brand-b:#d90028; --on-brand:#ffffff;
+  --brand-a:#d90028; --brand-b:#d90028; --on-brand:#ffffff; --ok:#0a7c45;
   --accent:#0a7c45; --accent-fg:#ffffff; --accent-soft:#dcf3e7;
   --today:#8f5300; --today-soft:#fbecd0;
   --late:#b3261e; --late-soft:#fbe3e0;
@@ -18,7 +18,7 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#121010; --surface:#1c1918; --surface-2:#292523; --fg:#f3efec; --muted:#a69e98; --line:#38322f;
-    --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff;
+    --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff; --ok:#10683d; --ok:#10683d;
     --accent:#3dcb83; --accent-fg:#05170d; --accent-soft:#16372a;
     --today:#f0b44c; --today-soft:#3a2d12;
     --late:#ff8f86; --late-soft:#3d1c1a;
@@ -28,7 +28,7 @@
 }
 :root[data-theme="dark"]{
   --bg:#121010; --surface:#1c1918; --surface-2:#292523; --fg:#f3efec; --muted:#a69e98; --line:#38322f;
-  --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff;
+  --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff; --ok:#10683d;
   --accent:#3dcb83; --accent-fg:#05170d; --accent-soft:#16372a;
   --today:#f0b44c; --today-soft:#3a2d12;
   --late:#ff8f86; --late-soft:#3d1c1a;
@@ -44,6 +44,7 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .muted{color:var(--muted)}
 .small{font-size:.85rem}
 
+.hero.ok{background:var(--ok)}
 .hero{background:linear-gradient(135deg,var(--brand-a),var(--brand-b));color:var(--on-brand);border-radius:1.4rem;padding:1.1rem 1.1rem 1.3rem;box-shadow:var(--shadow)}
 .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
 .hero-date{font-size:.9rem;opacity:.92}
@@ -330,7 +331,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.6.0';
+const APP_VERSION='0.6.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -591,7 +592,7 @@ function viewHome(){
     sub=d.ahead.length?(d.t.dow===5?'Este fin de semana':'Mañana')+' '+(d.ahead.length===1?'cumple 1 cliente':'cumplen '+d.ahead.length+' clientes')+': llévate el móvil':'Ya has felicitado a todos los de hoy';
   }
   else{head='Hoy no cumple nadie';sub='Mira los próximos días';}
-  $view.innerHTML='<div class="stick"><section class="hero"><div class="hero-top"><div><div class="hero-date">'+esc(f.charAt(0).toUpperCase()+f.slice(1))+'</div><div class="hero-title">Cumpleaños de clientes</div></div>'
+  $view.innerHTML='<div class="stick"><section class="hero'+(d.pend>0?'':' ok')+'"><div class="hero-top"><div><div class="hero-date">'+esc(f.charAt(0).toUpperCase()+f.slice(1))+'</div><div class="hero-title">Cumpleaños de clientes</div></div>'
     +'<button class="icon-btn" data-act="settings" aria-label="Ajustes">'+ICON_SET+'</button></div>'
     +'<div class="hero-count"><span class="big">'+(d.pend>0?d.pend:(d.today.length||d.ahead.length?'✓':'0'))+'</span><div class="hero-sub"><strong>'+esc(head)+'</strong><small>'+esc(sub)+'</small></div></div></section>'
     +'<label class="search">'+ICON_SEARCH+'<input id="q" type="search" placeholder="Buscar cliente por nombre o teléfono" value="'+esc(state.q)+'" autocomplete="off" aria-label="Buscar cliente"></label></div>'
