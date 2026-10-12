@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+def appVersionCodeInt = Integer.parseInt((project.findProperty('appVersionCode') ?: '1').toString())
+def appVersionNameStr = (project.findProperty('appVersionName') ?: '0.0.0').toString()
+
 android {
     namespace = "com.agendacumples.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "com.agendacumples.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (project.findProperty('appVersionCode') ?: '1').toInteger()
-        versionName (project.findProperty('appVersionName') ?: '0.0.0')
+        versionCode appVersionCodeInt
+        versionName appVersionNameStr
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -47,6 +50,8 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
