@@ -12,7 +12,6 @@ import android.provider.Settings;
 import android.util.Base64;
 
 import androidx.activity.result.ActivityResult;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSObject;
@@ -43,16 +42,18 @@ public class AgendaNativePlugin extends Plugin {
     private static final int MAX_FILE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_APK_BYTES = 80 * 1024 * 1024;
 
-    static int nightModeFor(String mode) {
-        if ("dark".equals(mode)) return AppCompatDelegate.MODE_NIGHT_YES;
-        if ("light".equals(mode)) return AppCompatDelegate.MODE_NIGHT_NO;
-        return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+    /** Fondo de ventana e iconos de las barras del sistema según el aspecto elegido. */
+    static void applyAppearance(Activity activity, boolean dark) {
+        activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(dark ? 0xFF121010 : 0xFFF6F3F1));
+        androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView());
+        c.setAppearanceLightStatusBars(!dark);
+        c.setAppearanceLightNavigationBars(!dark);
     }
 
     @PluginMethod
     public void setTheme(final PluginCall call) {
-        final String mode = call.getString("mode", "auto");
-        getContext().getSharedPreferences("cfg", android.content.Context.MODE_PRIVATE).edit().putString("theme", mode).apply();
+        final boolean dark = "dark".equals(call.getString("mode", "light"));
+        getContext().getSharedPreferences("cfg", android.content.Context.MODE_PRIVATE).edit().putString("theme", dark ? "dark" : "light").apply();
         final Activity activity = getActivity();
         if (activity == null) {
             call.resolve();
@@ -61,11 +62,7 @@ public class AgendaNativePlugin extends Plugin {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                int target = nightModeFor(mode);
-                if (AppCompatDelegate.getDefaultNightMode() != target) {
-                    AppCompatDelegate.setDefaultNightMode(target);
-                    activity.recreate();
-                }
+                applyAppearance(activity, dark);
                 call.resolve();
             }
         });

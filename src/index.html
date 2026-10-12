@@ -321,7 +321,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.11';
+const APP_VERSION='0.5.12';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -367,8 +367,8 @@ const NATIVE=!!(CAP&&typeof CAP.isNativePlatform==='function'&&CAP.isNativePlatf
 const REPO='Calabia78/agenda-cumples';
 const KEY_N='cumples-clientes:avisos:v1';
 const KEY_T='cumples-clientes:tema:v1';
-function loadTheme(){try{const t=localStorage.getItem(KEY_T);return (t==='light'||t==='dark')?t:'auto';}catch(e){return 'auto';}}
-function applyTheme(t){const r=document.documentElement;if(t==='light'||t==='dark')r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');}
+function loadTheme(){try{return localStorage.getItem(KEY_T)==='dark'?'dark':'light';}catch(e){return 'light';}}
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}
 let LN=null,AG=null;
 // El puente nativo de Capacitor (sin empaquetador) solo ofrece nativePromise: llamamos a los plugins con él.
 function nativePlugin(name){return new Proxy({},{get:function(t,m){if(typeof m!=='string'||m==='then')return undefined;return function(a){return CAP.nativePromise(name,m,a||{});};}});}
@@ -635,8 +635,8 @@ function viewAjustes(){
     +'<button class="btn" data-act="reset-msg">Restaurar mensaje original</button></section>';
   if(NATIVE){
     const th=loadTheme();
-    h+='<section class="panel"><h3>Aspecto</h3><p class="muted small">Elige si la app se ve clara, oscura o como tenga el móvil.</p><div class="btns">'
-      +[['auto','Automático'],['light','Claro'],['dark','Oscuro']].map(function(o){return '<button class="btn'+(th===o[0]?' primary':'')+'" data-act="theme" data-v="'+o[0]+'">'+o[1]+'</button>';}).join('')
+    h+='<section class="panel"><h3>Aspecto</h3><p class="muted small">Elige cómo quieres ver la app.</p><div class="btns">'
+      +[['light','Claro'],['dark','Oscuro']].map(function(o){return '<button class="btn'+(th===o[0]?' primary':'')+'" data-act="theme" data-v="'+o[0]+'">'+o[1]+'</button>';}).join('')
       +'</div></section>';
   }
   h+='<section class="panel"><h3>Lista de clientes</h3>'
