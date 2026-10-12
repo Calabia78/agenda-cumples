@@ -331,7 +331,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.6.1';
+const APP_VERSION='0.7.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -365,11 +365,13 @@ const state={
   manual:Array.isArray(savedS.manual)?savedS.manual:[],
   over:(savedS.over&&typeof savedS.over==='object')?savedS.over:{},
   sent:(savedS.sent&&typeof savedS.sent==='object')?savedS.sent:{},
+  excl:(savedS.excl&&typeof savedS.excl==='object')?savedS.excl:{},
+  confirmExcl:null,
   tpl:loadTpl(savedS.tpl),
   q:'',shown:40,
   editing:null,opened:{},importMsg:null,pending:null,backupOut:'',armed:false
 };
-function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,imported:state.imported});scheduleSync();}
+function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,imported:state.imported});scheduleSync();}
 function contactsAll(){return state.contacts.concat(state.manual);}
 
 /* ---------- Puente nativo (solo en la APK; en el navegador no hace nada) ---------- */
@@ -523,6 +525,12 @@ function editorHTML(c){
     +'<div class="btns"><button class="btn primary" data-act="ed-save" data-id="'+id+'">Guardar</button><button class="btn" data-act="ed-cancel">Cancelar</button>'
     +((ov.alias||ov.tel)?'<button class="btn" data-act="ed-clear" data-id="'+id+'">Quitar apodo y número</button>':'')+'</div></div>';
 }
+function exclHTML(c){
+  const id=esc(c.i);
+  return '<div class="editor"><p><b>¿Seguro que '+esc(fullName(c))+' no es cliente vuestro?</b></p>'
+    +'<p class="muted small">Se quitará de la lista y no se volverá a avisar, ni aunque aparezca en una lista nueva. Podrás recuperarlo en Ajustes → Clientes descartados.</p>'
+    +'<div class="btns"><button class="btn danger" data-act="excl-yes" data-id="'+id+'">Sí, no es cliente nuestro</button><button class="btn" data-act="excl-no">Cancelar</button></div></div>';
+}
 function rowHTML(o,opts){
   opts=opts||{};
   const c=o.c,id=c.i,eid=esc(id),done=state.sent[id]===o.year&&opts.showDone!==false;
@@ -534,7 +542,8 @@ function rowHTML(o,opts){
   if(wa)phoneHtml='<span class="phone">'+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
   else if(lf)phoneHtml='<span class="phone">'+esc(fmtPhone(lf))+'</span><span>fijo</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
-  const editBtn=c.demo?'':'<button class="mini" data-act="edit" data-id="'+eid+'">Apodo / otro nº</button>';
+  const editBtn=c.demo?'':'<button class="mini" data-act="edit" data-id="'+eid+'">Apodo / otro nº</button>'
+    +((c.demo||c.manual)?'':'<button class="mini" data-act="excl-ask" data-id="'+eid+'">No es cliente nuestro</button>');
   const soft=opts.soft||o.diff>0;
   let action;
   if(c.demo)action='<span class="wa off">Ejemplo</span>';
@@ -551,7 +560,8 @@ function rowHTML(o,opts){
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+editBtn+'</div></div>'
     +'<div class="acts">'+action+doneBtn+'</div>'
-    +((state.editing===id&&!c.demo)?editorHTML(c):'')+'</li>';
+    +((state.editing===id&&!c.demo)?editorHTML(c):'')
+    +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
 function listHTML(items,opts){return '<ul class="list">'+items.map(o=>rowHTML(o,opts)).join('')+'</ul>';}
 
@@ -699,7 +709,11 @@ function viewAjustes(){
     +'<p style="margin:.75rem 0 0"><button class="btn primary" data-act="add-manual">Añadir contacto</button></p>';
   if(state.manual.length)h+='<ul class="manual-list">'+state.manual.map(c=>'<li><span>'+esc(fullName(c))+' · '+c.d+'/'+c.m+(c.p&&c.p[0]?' · '+esc(fmtPhone(c.p[0])):'')+'</span><button class="btn" data-act="del-manual" data-id="'+esc(c.i)+'">Eliminar</button></li>').join('')+'</ul>';
   h+='</section>';
-  h+='<section class="panel"><h3>Copia de seguridad</h3><p class="muted small">Guarda lo felicitado, los apodos, los números añadidos, los contactos a mano y el mensaje. Los contactos del CSV se recuperan volviendo a cargarlo. Copia el texto y guárdalo donde quieras, por ejemplo en una nota.</p>'
+  const ex=Object.keys(state.excl).map(k=>state.excl[k]).sort((a,b)=>fullName(a).localeCompare(fullName(b),'es'));
+  h+='<section class="panel"><h3>Clientes descartados'+(ex.length?' ('+ex.length+')':'')+'</h3><p class="muted small">Los que marcas como «No es cliente nuestro» (por ejemplo, compartidos con otra oficina). No se avisa de su cumpleaños y, si vuelven a salir en una lista nueva, no se incluyen.</p>'
+    +(ex.length?'<ul class="manual-list">'+ex.map(c=>'<li><span>'+esc(fullName(c))+' · '+c.d+'/'+c.m+'</span><button class="btn" data-act="excl-restore" data-id="'+esc(c.i)+'">Recuperar</button></li>').join('')+'</ul>':'<p class="muted small" style="margin:.5rem 0 0">Ninguno de momento.</p>')
+    +'</section>';
+  h+='<section class="panel"><h3>Copia de seguridad</h3><p class="muted small">Guarda lo felicitado, los apodos, los números añadidos, los contactos a mano, los clientes descartados y el mensaje. Los contactos del CSV se recuperan volviendo a cargarlo. Copia el texto y guárdalo donde quieras, por ejemplo en una nota.</p>'
     +'<p><button class="btn" data-act="gen-backup">Generar copia</button></p>'
     +(state.backupOut?'<textarea id="backup-out" class="field" rows="4" readonly aria-label="Texto de la copia">'+esc(state.backupOut)+'</textarea><p style="margin-top:.5rem"><button class="btn" data-act="copy-backup">Copiar al portapapeles</button></p>':'')
     +'<p class="muted small" style="margin-top:1rem">Para restaurar, pega aquí el texto de una copia:</p>'
@@ -728,12 +742,14 @@ function go(v){state.view=v;state.editing=null;state.q='';state.shown=40;render(
 
 /* ---------- Importación, contactos a mano y copia ---------- */
 function applyImport(res,added,removed,uri){
-  state.contacts=res.contacts;state.demo=false;state.opened={};state.editing=null;state.imported=Date.now();state.pending=null;
+  state.contacts=res.contacts;state.demo=false;state.opened={};state.editing=null;state.confirmExcl=null;state.imported=Date.now();state.pending=null;
+  (res.excluded||[]).forEach(c=>{state.excl[c.i]=c;});
   if(!lsSet(KEY_C,res.contacts))toast('No he podido guardar los datos en este dispositivo');
   persist();
   const s=res.stats,notes=[];
   if(s.ignored.length)notes.push('Columnas que no se han guardado: '+s.ignored.join(', ')+'.');
   if(s.hasNif)notes.push('El archivo incluye NIF. No hace falta y no se guarda; la próxima vez no lo marques al exportar.');
+  if((res.excluded||[]).length)notes.push(res.excluded.length+' '+plural(res.excluded.length,'cliente descartado antes no se ha vuelto','clientes descartados antes no se han vuelto')+' a incluir.');
   notes.push(uri?'Borrando el archivo descargado…':'Cuando termines, borra el archivo descargado del dispositivo.');
   state.importMsg={ok:true,text:'Importación completada.',notes:notes,stats:{contacts:res.contacts.length,mobile:s.mobile,noMobile:s.noMobile,added:added,removed:removed,omitted:s.badDate+s.skipped}};
   toast(fmtN(res.contacts.length)+' contactos cargados');
@@ -748,6 +764,10 @@ async function handleFile(file){
     try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(e){text=new TextDecoder('windows-1252').decode(buf);}
     const res=buildContacts(parseCSV(text));
     if(!res.contacts.length)throw new Error('No he encontrado ningún contacto con fecha de nacimiento válida.');
+    const exs=[];
+    res.contacts=res.contacts.filter(c=>{if(state.excl[c.i]){exs.push(c);return false;}return true;});
+    res.excluded=exs;
+    if(!res.contacts.length)throw new Error('Todos los contactos del archivo estaban descartados.');
     const prev=state.demo?[]:state.contacts;
     const before=new Set(prev.map(c=>c.i)),after=new Set(res.contacts.map(c=>c.i));
     const added=res.contacts.filter(c=>!before.has(c.i)).length;
@@ -777,13 +797,14 @@ function saveEditor(id){
   if(alias||tel)state.over[id]={alias:alias,tel:tel};else delete state.over[id];
   state.editing=null;persist();render();toast('Guardado');
 }
-function backupText(){return JSON.stringify({v:3,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual});}
+function backupText(){return JSON.stringify({v:4,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl});}
 function restoreBackup(raw){
   let o;
   try{o=JSON.parse(raw);}catch(e){toast('El texto no es una copia válida');return;}
-  if(!o||[1,2,3].indexOf(o.v)<0||typeof o.sent!=='object'){toast('El texto no es una copia válida');return;}
+  if(!o||[1,2,3,4].indexOf(o.v)<0||typeof o.sent!=='object'){toast('El texto no es una copia válida');return;}
   state.sent=o.sent||{};
   if(o.v>=2){state.over=(o.over&&typeof o.over==='object')?o.over:{};state.manual=Array.isArray(o.manual)?o.manual:[];}
+  if(o.v>=4){state.excl=(o.excl&&typeof o.excl==='object')?o.excl:{};state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);}
   if(o.tpl)state.tpl=loadTpl(o.tpl);
   persist();render();toast('Copia restaurada');
 }
@@ -817,13 +838,28 @@ document.addEventListener('click',function(e){
     persist();render();
   }
   else if(act==='edit'){
-    state.editing=(state.editing===t.dataset.id)?null:t.dataset.id;render();
+    state.confirmExcl=null;state.editing=(state.editing===t.dataset.id)?null:t.dataset.id;render();
     const a=$('#ed-alias');
     if(a){a.focus({preventScroll:true});setTimeout(function(){const li=a.closest('li');if(li)li.scrollIntoView({block:'start',behavior:'smooth'});},350);}
   }
   else if(act==='ed-save')saveEditor(t.dataset.id);
   else if(act==='ed-cancel'){state.editing=null;render();}
   else if(act==='ed-clear'){delete state.over[t.dataset.id];state.editing=null;persist();render();toast('Quitado');}
+  else if(act==='excl-ask'){state.confirmExcl=t.dataset.id;state.editing=null;render();}
+  else if(act==='excl-no'){state.confirmExcl=null;render();}
+  else if(act==='excl-yes'){
+    const id=t.dataset.id,c=state.contacts.find(x=>x.i===id);
+    if(c){
+      state.excl[id]=c;state.contacts=state.contacts.filter(x=>x.i!==id);
+      delete state.sent[id];delete state.over[id];
+      lsSet(KEY_C,state.contacts);
+    }
+    state.confirmExcl=null;persist();render();toast('Descartado. No se volverá a avisar');
+  }
+  else if(act==='excl-restore'){
+    const c=state.excl[t.dataset.id];
+    if(c){delete state.excl[t.dataset.id];delete c.demo;state.contacts.push(c);lsSet(KEY_C,state.contacts);persist();render();toast('Recuperado');}
+  }
   else if(act==='add-manual')addManual();
   else if(act==='del-manual'){
     state.manual=state.manual.filter(c=>c.i!==t.dataset.id);delete state.over[t.dataset.id];delete state.sent[t.dataset.id];
@@ -846,7 +882,7 @@ document.addEventListener('click',function(e){
   else if(act==='wipe'){
     if(!state.armed){state.armed=true;render();setTimeout(function(){if(state.armed){state.armed=false;if(state.view==='ajustes')render();}},5000);return;}
     try{localStorage.removeItem(KEY_C);localStorage.removeItem(KEY_S);}catch(err){}
-    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.backupOut='';state.armed=false;
+    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.backupOut='';state.armed=false;
     state.tpl={text:DEFAULT_MSG};
     scheduleSync();render();toast('Datos borrados');
   }
