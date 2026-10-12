@@ -321,7 +321,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.10';
+const APP_VERSION='0.5.11';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -507,7 +507,7 @@ function editorHTML(c){
   const ov=state.over[c.i]||{},id=esc(c.i);
   return '<div class="editor">'
     +'<label>Felicitar como<input id="ed-alias" class="field" value="'+esc(ov.alias||'')+'" placeholder="'+esc(msgName(c))+'" autocomplete="off"></label>'
-    +'<label>Felicitar en otro número<input id="ed-tel" class="field" type="tel" inputmode="tel" value="'+esc(ov.tel?fmtPhone(ov.tel):'')+'" placeholder="Móvil de otra persona o número alternativo" autocomplete="off"></label>'
+    +'<label>Felicitar en otro número<input id="ed-tel" class="field" type="tel" inputmode="tel" value="'+esc(ov.tel?fmtPhone(ov.tel):'')+'" placeholder="Móvil alternativo" autocomplete="off"></label>'
     +'<p class="muted small">El texto se puede cambiar en WhatsApp antes de enviarlo. Esto se guarda solo en este dispositivo y se conserva al actualizar la lista.</p>'
     +'<div class="btns"><button class="btn primary" data-act="ed-save" data-id="'+id+'">Guardar</button><button class="btn" data-act="ed-cancel">Cancelar</button>'
     +((ov.alias||ov.tel)?'<button class="btn" data-act="ed-clear" data-id="'+id+'">Quitar apodo y número</button>':'')+'</div></div>';
