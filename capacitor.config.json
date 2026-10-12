@@ -11,7 +11,7 @@
       "iconColor": "#C81F1A"
     },
     "SystemBars": {
-      "insetsHandling": "native"
+      "insetsHandling": "disable"
     }
   }
 }
