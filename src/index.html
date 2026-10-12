@@ -157,7 +157,8 @@ function daysIn(m,y){return [31,isLeap(y)?29:28,31,30,31,30,31,31,30,31,30,31][m
 function parseCSV(text){
   if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
   const first=text.split(/\r?\n/,1)[0]||'';
-  const delim=first.split(';').length>=first.split(',').length?';':',';
+  const nS=first.split(';').length,nC=first.split(',').length,nT=first.split('\t').length;
+  const delim=(nT>nS&&nT>nC)?'\t':(nS>=nC?';':',');
   const rows=[];let row=[],field='',inQ=false;
   for(let i=0;i<text.length;i++){
     const c=text[i];
@@ -217,6 +218,9 @@ function phoneRank(h){
 
 function buildContacts(rows){
   if(!rows.length)throw new Error('El archivo está vacío.');
+  let h0=0;
+  for(let k=0;k<Math.min(rows.length,10);k++){const hk=rows[k].map(normKey);if(hk.indexOf('nombre')>=0||hk.indexOf('apellidos')>=0||hk.indexOf('nombrecompleto')>=0){h0=k;break;}}
+  if(h0)rows=rows.slice(h0);
   const hdr=rows[0].map(normKey);
   const iNom=hdr.indexOf('nombre'),iApe=hdr.indexOf('apellidos');
   const iDob=hdr.findIndex(h=>h.indexOf('fechanac')===0||h==='cumpleanos'||h==='nacimiento');
@@ -227,7 +231,7 @@ function buildContacts(rows){
   else{if(iNom<0)missing.push('"Nombre"');if(iApe<0)missing.push('"Apellidos"');}
   if(iDob<0)missing.push('"Fecha nacimiento"');
   if(!iTel.length)missing.push('al menos un teléfono');
-  if(missing.length)throw new Error('Faltan campos en el archivo: '+missing.join(', ')+'. Vuelve a exportar del portal marcándolos.');
+  if(missing.length){const seen=rows[0].map(x=>String(x).trim()).filter(Boolean).join(' · ');throw new Error('Faltan campos en el archivo: '+missing.join(', ')+'. Vuelve a exportar del portal marcándolos.'+(seen?' Columnas que he leído: '+(seen.length>160?seen.slice(0,160)+'…':seen)+'.':' No he podido leer columnas: puede que no sea un CSV.'));}
   const used=new Set([iNom,iApe,iDob].concat(iTel));
   const ignored=rows[0].map((h,i)=>used.has(i)?null:String(h).trim()).filter(Boolean);
   const contacts=[],seen=new Map();
@@ -331,7 +335,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.7.0';
+const APP_VERSION='0.7.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -760,8 +764,12 @@ async function handleFile(file){
   if(!file)return;
   try{
     const buf=await file.arrayBuffer();
+    const u8=new Uint8Array(buf);
+    if(u8[0]===0x50&&u8[1]===0x4B)throw new Error('ese archivo es un Excel o un ZIP, no un CSV. Exporta del portal en formato CSV.');
     let text;
-    try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(e){text=new TextDecoder('windows-1252').decode(buf);}
+    if(u8[0]===0xFF&&u8[1]===0xFE)text=new TextDecoder('utf-16le').decode(buf);
+    else if(u8[0]===0xFE&&u8[1]===0xFF)text=new TextDecoder('utf-16be').decode(buf);
+    else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(e){text=new TextDecoder('windows-1252').decode(buf);}}
     const res=buildContacts(parseCSV(text));
     if(!res.contacts.length)throw new Error('No he encontrado ningún contacto con fecha de nacimiento válida.');
     const exs=[];
@@ -777,7 +785,7 @@ async function handleFile(file){
     }
     applyImport(res,added,removed,file.uri||null);
   }catch(err){
-    state.pending=null;state.importMsg={ok:false,text:'No se pudo importar: '+err.message};render();
+    state.pending=null;state.importMsg={ok:false,text:'No se pudo importar'+(file.name?' «'+file.name+'»':'')+': '+err.message};render();
   }
 }
 function addManual(){
