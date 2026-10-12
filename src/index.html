@@ -174,6 +174,70 @@ function parseCSV(text){
   return rows.filter(r=>r.some(x=>x.trim()!==''));
 }
 
+/* Lector mínimo de .xlsx (un ZIP con XML): sin librerías, todo en el dispositivo. */
+async function inflateRaw(bytes){
+  if(typeof DecompressionStream==='undefined')throw new Error('este móvil no puede abrir Excel. Exporta del portal en CSV.');
+  const ds=new DecompressionStream('deflate-raw');
+  const w=ds.writable.getWriter();w.write(bytes);w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+async function unzip(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+  let e=-1;for(let i=u8.length-22;i>=Math.max(0,u8.length-70000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)throw new Error('el archivo no es un Excel válido.');
+  const n=dv.getUint16(e+10,true);let o=dv.getUint32(e+16,true);
+  const td=new TextDecoder(),out={};
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(o,true)!==0x02014b50)break;
+    const method=dv.getUint16(o+10,true),cs=dv.getUint32(o+20,true),nl=dv.getUint16(o+28,true),el=dv.getUint16(o+30,true),cl=dv.getUint16(o+32,true),lo=dv.getUint32(o+42,true);
+    const name=td.decode(u8.subarray(o+46,o+46+nl));
+    o+=46+nl+el+cl;
+    if(!/^xl\/(sharedStrings\.xml|worksheets\/[^\/]+\.xml)$/.test(name))continue;
+    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);
+    const raw=u8.subarray(ds,ds+cs);
+    out[name]=td.decode(method===0?raw:await inflateRaw(raw));
+  }
+  return out;
+}
+async function xlsxToRows(u8){
+  const files=await unzip(u8);
+  const names=Object.keys(files).filter(x=>x.indexOf('worksheets/')>0).sort();
+  if(!names.length)throw new Error('no he encontrado ninguna hoja en el Excel.');
+  const parse=x=>new DOMParser().parseFromString(x,'application/xml');
+  const ss=[];
+  if(files['xl/sharedStrings.xml']){
+    parse(files['xl/sharedStrings.xml']).querySelectorAll('si').forEach(si=>{ss.push(Array.from(si.querySelectorAll('t')).map(t=>t.textContent).join(''));});
+  }
+  const doc=parse(files[names[0]]);
+  const colIdx=ref=>{const m=/^([A-Z]+)/.exec(ref||'');if(!m)return -1;let n=0;for(const ch of m[1])n=n*26+ch.charCodeAt(0)-64;return n-1;};
+  const rows=[];
+  doc.querySelectorAll('sheetData > row').forEach(r=>{
+    const row=[];let pos=0;
+    r.querySelectorAll(':scope > c').forEach(c=>{
+      let j=colIdx(c.getAttribute('r'));if(j<0)j=pos;pos=j+1;
+      const t=c.getAttribute('t'),v=c.querySelector('v');
+      let val='';
+      if(t==='s')val=v?(ss[+v.textContent]||''):'';
+      else if(t==='inlineStr')val=Array.from(c.querySelectorAll('is t')).map(x=>x.textContent).join('');
+      else if(v)val=v.textContent;
+      while(row.length<j)row.push('');
+      row[j]=val;
+    });
+    rows.push(row);
+  });
+  // Las fechas guardadas como número de Excel se pasan a día/mes/año.
+  let hi=-1,dc=-1;
+  for(let k=0;k<Math.min(rows.length,10)&&dc<0;k++){const i=rows[k].findIndex(x=>/^fechanac/.test(normKey(x)));if(i>=0){hi=k;dc=i;}}
+  if(dc>=0)for(let k=hi+1;k<rows.length;k++){
+    const x=String(rows[k][dc]==null?'':rows[k][dc]).trim();
+    if(/^\d+(\.\d+)?$/.test(x)&&+x>1&&+x<80000){
+      const d=new Date(Date.UTC(1899,11,30)+Math.floor(+x)*86400000);
+      rows[k][dc]=String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear();
+    }
+  }
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+
 function parseDob(s){
   s=String(s==null?'':s).trim();if(!s)return null;
   let m,d,mo,y=null;
@@ -335,7 +399,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.7.1';
+const APP_VERSION='0.7.2';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -668,8 +732,8 @@ function viewAjustes(){
     +'<p class="muted small">'+(real?fmtN(n)+' contactos, '+fmtN(withMobile)+' con móvil'+(last?'. Última actualización: '+esc(last)+'.':'.'):'Ahora mismo ves contactos de ejemplo.')+'</p>'
     +'<p class="muted small">Al exportar del portal marca solo: <b>Nombre</b>, <b>Apellidos</b>, <b>Fecha nacimiento</b> y los teléfonos (<b>Teléfono contacto</b>, <b>2º Teléfono contacto</b>, <b>Teléfono profesional</b>). No hace falta NIF, IdAccount ni Nombre completo. Se usa un solo móvil por persona, en ese orden.</p>'
     +'<p class="muted small">Para actualizar la lista, vuelve a cargar el archivo: se añaden los nuevos, se quitan los que ya no están y se conserva lo felicitado, los apodos y los números añadidos. Después, borra el archivo descargado.</p>'
-    +(NATIVE?'<p style="margin:.75rem 0 0"><button class="btn primary" data-act="pick-file">Elegir archivo CSV</button></p><p class="muted small">Al terminar la importación, la app intenta borrar por ti el archivo descargado.</p>'
-      :'<div class="drop" id="drop"><p style="margin-top:0">Arrastra aquí el archivo o elígelo</p><input type="file" id="file" accept=".csv,.txt,text/csv" aria-label="Archivo CSV"></div>');
+    +(NATIVE?'<p style="margin:.75rem 0 0"><button class="btn primary" data-act="pick-file">Elegir archivo (CSV o Excel)</button></p><p class="muted small">Al terminar la importación, la app intenta borrar por ti el archivo descargado.</p>'
+      :'<div class="drop" id="drop"><p style="margin-top:0">Arrastra aquí el archivo o elígelo</p><input type="file" id="file" accept=".csv,.txt,.xlsx,text/csv" aria-label="Archivo CSV o Excel"></div>');
   if(state.pending){
     const p=state.pending;
     h+='<p class="msg-err" style="margin-bottom:.4rem">Este archivo tiene '+fmtN(p.res.contacts.length)+' contactos y ahora tienes '+fmtN(p.prevN)+'. Si lo aplicas, se quitarán '+fmtN(p.removed)+'. ¿Es el archivo correcto?</p>'
@@ -765,12 +829,16 @@ async function handleFile(file){
   try{
     const buf=await file.arrayBuffer();
     const u8=new Uint8Array(buf);
-    if(u8[0]===0x50&&u8[1]===0x4B)throw new Error('ese archivo es un Excel o un ZIP, no un CSV. Exporta del portal en formato CSV.');
-    let text;
-    if(u8[0]===0xFF&&u8[1]===0xFE)text=new TextDecoder('utf-16le').decode(buf);
-    else if(u8[0]===0xFE&&u8[1]===0xFF)text=new TextDecoder('utf-16be').decode(buf);
-    else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(e){text=new TextDecoder('windows-1252').decode(buf);}}
-    const res=buildContacts(parseCSV(text));
+    let rows;
+    if(u8[0]===0x50&&u8[1]===0x4B)rows=await xlsxToRows(u8);
+    else{
+      let text;
+      if(u8[0]===0xFF&&u8[1]===0xFE)text=new TextDecoder('utf-16le').decode(buf);
+      else if(u8[0]===0xFE&&u8[1]===0xFF)text=new TextDecoder('utf-16be').decode(buf);
+      else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(e){text=new TextDecoder('windows-1252').decode(buf);}}
+      rows=parseCSV(text);
+    }
+    const res=buildContacts(rows);
     if(!res.contacts.length)throw new Error('No he encontrado ningún contacto con fecha de nacimiento válida.');
     const exs=[];
     res.contacts=res.contacts.filter(c=>{if(state.excl[c.i]){exs.push(c);return false;}return true;});
