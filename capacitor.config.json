@@ -1,0 +1,17 @@
+{
+  "appId": "com.agendacumples.app",
+  "appName": "Cumples",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_cake",
+      "iconColor": "#C81F1A"
+    },
+    "SystemBars": {
+      "insetsHandling": "native"
+    }
+  }
+}

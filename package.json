@@ -1,0 +1,21 @@
+{
+  "name": "agenda-cumples",
+  "version": "0.5.0",
+  "private": true,
+  "description": "Agenda de cumpleaños",
+  "scripts": {
+    "prepare-www": "node scripts/prepare-www.mjs",
+    "sync": "npm run prepare-www && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/local-notifications": "^8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@fontsource-variable/bricolage-grotesque": "*",
+    "@fontsource-variable/schibsted-grotesk": "*",
+    "@fontsource/ibm-plex-mono": "*"
+  }
+}

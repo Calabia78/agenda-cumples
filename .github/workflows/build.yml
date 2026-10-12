@@ -1,0 +1,77 @@
+name: Compilar APK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Versión
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF_NAME#v}"; else V=$(node -p "require('./package.json').version"); fi
+          IFS=. read -r MA MI PA <<< "$V"
+          echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((MA*10000+MI*100+PA))" >> "$GITHUB_ENV"
+          APPV=$(grep -oP "APP_VERSION='\K[^']+" src/index.html)
+          if [ "$APPV" != "$V" ]; then echo "::error::La versión de la etiqueta ($V) no coincide con APP_VERSION en src/index.html ($APPV)"; exit 1; fi
+
+      - run: npm ci
+      - run: npm run sync
+
+      - name: Clave de firma
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Falta el secreto ANDROID_KEYSTORE_B64 (clave de firma)"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/agenda.keystore"
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/agenda.keystore" >> "$GITHUB_ENV"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar y firmar
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: agenda
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease -PappVersionName="$VERSION_NAME" -PappVersionCode="$VERSION_CODE"
+
+      - name: Comprobar firma
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          ls -la "$APK"
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK"
+          cp "$APK" Cumples.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cumples-apk
+          path: Cumples.apk
+
+      - name: Publicar versión
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Cumples.apk
+          name: Versión ${{ env.VERSION_NAME }}
+          generate_release_notes: true
