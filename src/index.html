@@ -111,6 +111,8 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .acts.nw .edit-btn{flex:none}
 @media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
+.phone{display:inline-flex;align-items:center;gap:.3rem}
+.phone svg{color:var(--muted);flex:none}
 .age{display:inline-flex;align-items:center;gap:.2rem;font-size:.9rem;font-weight:700;color:var(--edit);white-space:nowrap}
 .del-btn:active{background:var(--late);color:var(--accent-fg)}
 
@@ -408,7 +410,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.9.2';
+const APP_VERSION='0.9.3';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -580,6 +582,7 @@ function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c)
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 const ICON_PENCIL=SVG('<path d="M4 20h4L19.2 8.8a2.1 2.1 0 0 0 0-3L18.2 4.8a2.1 2.1 0 0 0-3 0L4 16z"/><path d="M13.5 6.5l4 4"/>',18);
+const ICON_PHONE=SVG('<path d="M6.6 3.5h2.6l1.4 3.6-1.8 1.2a11 11 0 0 0 5.9 5.9l1.2-1.8 3.6 1.4v2.6a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/>',15);
 const ICON_CANDLE=SVG('<path d="M12 2.4c1.2 1.4 1.2 2.6 0 3.6-1.2-1-1.2-2.2 0-3.6z"/><rect x="8.8" y="8" width="6.4" height="11" rx="1.3"/><path d="M6.5 20.6h11"/>',14);
 // Años de nacimiento con dos cifras: de 00 a PIVOT_YY son 20xx; el resto, 19xx.
 const PIVOT_YY=13;
@@ -628,8 +631,8 @@ function rowHTML(o,opts){
   if(done)cls.push('done');
   if(state.opened[id])cls.push('opened');
   let phoneHtml='';
-  if(wa)phoneHtml='<span class="phone">'+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
-  else if(lf)phoneHtml='<span class="phone">'+esc(fmtPhone(lf))+'</span><span>fijo</span>';
+  if(wa)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
+  else if(lf)phoneHtml='<span class="phone">'+ICON_PHONE+esc(fmtPhone(lf))+'</span><span>fijo</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
   const soft=opts.soft||o.diff>0;
   let action;
