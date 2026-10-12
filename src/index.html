@@ -282,7 +282,7 @@ function closedAhead(dow){let k=0;while(k<4&&!isWorkday((dow+k+1)%7))k++;return 
 // Plan de avisos para el móvil. Se recalcula al abrir la app, al importar y al marcar "Hecho", así que cuenta lo que falta de verdad.
 // Entre semana: mañana y tarde (incluye lo atrasado de los últimos 3 días, p. ej. el fin de semana). Viernes: resumen del fin de semana.
 // Sábado y domingo: solo los que cumplen ese día.
-const NOTIF_TIMES={morning:[9,0],afternoon:[16,0],friday:[14,0],weekend:[10,0]};
+const NOTIF_TIMES={morning:[9,0],afternoon:[16,0],friday:[13,30],weekend:[10,0]};
 function planNotifications(contacts,sent,now,days,times){
   times=times||NOTIF_TIMES;
   const out=[],nowMs=now.getTime();
@@ -320,7 +320,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.6';
+const APP_VERSION='0.5.7';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -652,7 +652,7 @@ function viewAjustes(){
   h+='</section>';
   const plan=planNotifications(contactsAll(),state.sent,new Date(),21).slice(0,6);
   const fmtWhen=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
-  h+='<section class="panel"><h3>'+(NATIVE?'Avisos del móvil':'Avisos del móvil (vista previa)')+'</h3><p class="muted small">'+(NATIVE?'La app te avisa':'Así te avisaría la app instalada en el móvil')+': a las 9:00 y a las 16:00 entre semana, el viernes a las 14:00 con el resumen del fin de semana, y el sábado y el domingo a las 10:00.'+(NATIVE?' Abajo ves los próximos.':' Aquí solo puedes ver cuáles serían los próximos.')+'</p>'
+  h+='<section class="panel"><h3>'+(NATIVE?'Avisos del móvil':'Avisos del móvil (vista previa)')+'</h3><p class="muted small">'+(NATIVE?'La app te avisa':'Así te avisaría la app instalada en el móvil')+': a las 9:00 y a las 16:00 entre semana, el viernes a las 13:30 con el resumen del fin de semana, y el sábado y el domingo a las 10:00.'+(NATIVE?' Abajo ves los próximos.':' Aquí solo puedes ver cuáles serían los próximos.')+'</p>'
     +(NATIVE?'<p id="notif-status" class="muted small">Comprobando…</p><p class="muted small">Si algún día no te llega un aviso, en Ajustes del móvil → Aplicaciones → Cumples → Batería, elige «Sin restricciones».</p>':'')
     +(plan.length?'<ul class="manual-list">'+plan.map(x=>{const w=fmtWhen.format(new Date(x.when));return '<li style="display:block"><b>'+esc(w.charAt(0).toUpperCase()+w.slice(1))+'</b><br><span class="muted small">'+esc(x.body)+'</span></li>';}).join('')+'</ul>':'<p class="muted small">No hay avisos previstos en las próximas semanas.</p>')
     +'</section>';
