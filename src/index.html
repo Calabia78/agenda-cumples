@@ -9,7 +9,7 @@
   --brand-a:#d90028; --brand-b:#d90028; --on-brand:#ffffff; --ok:#0a7c45;
   --accent:#0a7c45; --accent-fg:#ffffff; --accent-soft:#dcf3e7;
   --today:#8f5300; --today-soft:#fbecd0;
-  --late:#b3261e; --late-soft:#fbe3e0;
+  --late:#b3261e; --late-soft:#fbe3e0; --edit:#d9640a; --edit-soft:#fdebd9;
   --shadow:0 1px 2px rgba(29,27,26,.06),0 8px 22px rgba(29,27,26,.07);
   --font-display:'Bitter',Georgia,'Times New Roman',serif;
   --font-body:'Source Sans 3',system-ui,'Segoe UI',sans-serif;
@@ -21,7 +21,7 @@
     --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff; --ok:#10683d; --ok:#10683d;
     --accent:#3dcb83; --accent-fg:#05170d; --accent-soft:#16372a;
     --today:#f0b44c; --today-soft:#3a2d12;
-    --late:#ff8f86; --late-soft:#3d1c1a;
+    --late:#ff8f86; --late-soft:#3d1c1a; --edit:#ffa24d; --edit-soft:#40250f;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
     color-scheme:dark;
   }
@@ -31,7 +31,7 @@
   --brand-a:#b5001f; --brand-b:#b5001f; --on-brand:#ffffff; --ok:#10683d;
   --accent:#3dcb83; --accent-fg:#05170d; --accent-soft:#16372a;
   --today:#f0b44c; --today-soft:#3a2d12;
-  --late:#ff8f86; --late-soft:#3d1c1a;
+  --late:#ff8f86; --late-soft:#3d1c1a; --edit:#ffa24d; --edit-soft:#40250f;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
   color-scheme:dark;
 }
@@ -106,8 +106,8 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .done-btn.on{color:var(--muted)}
 .del-btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--late);background:transparent;color:var(--late);font-weight:600;cursor:pointer}
 .acts.nw{flex-wrap:nowrap;gap:.4rem}.acts.nw .wa{flex:1 1 0;min-width:0;padding:.55rem .4rem;gap:.35rem}.acts.nw .del-btn,.acts.nw .done-btn{flex:none}
-.edit-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.8rem;min-width:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--line);background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
-.edit-btn.on{background:var(--accent-soft);border-color:var(--accent)}
+.edit-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.8rem;min-width:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--edit);background:transparent;color:var(--edit);font-weight:600;cursor:pointer}
+.edit-btn.on,.edit-btn:active{background:var(--edit-soft)}
 .acts.nw .edit-btn{flex:none}
 @media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
@@ -407,7 +407,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.8.0';
+const APP_VERSION='0.8.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
