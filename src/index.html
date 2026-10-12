@@ -111,6 +111,8 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .acts.nw .edit-btn{flex:none}
 @media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
+.sms-line{grid-column:1 / -1;margin:0;font-size:.9rem;color:var(--muted)}
+.sms-line a{color:var(--accent);font-weight:700}
 .phone{display:inline-flex;align-items:center;gap:.3rem}
 .phone svg{color:var(--muted);flex:none}
 .age{display:inline-flex;align-items:center;gap:.2rem;font-size:.9rem;font-weight:700;color:var(--edit);white-space:nowrap}
@@ -410,7 +412,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.9.4';
+const APP_VERSION='0.9.5';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -656,6 +658,7 @@ function rowHTML(o,opts){
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
     +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
+    +((state.opened[id]&&!c.demo&&smsTo(c))?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">Enviarle un SMS</a></p>':'')
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
