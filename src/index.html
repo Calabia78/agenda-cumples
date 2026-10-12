@@ -55,6 +55,7 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .hero-sub strong{display:block;font-size:1.15rem}
 .hero-sub small{display:block;opacity:.92;font-size:.88rem}
 
+.kb .stick{position:static}
 .stick{position:sticky;top:0;z-index:20;background:var(--bg);margin:-1rem 0 0;padding:1rem 0 .55rem}
 .stick .search{margin:.75rem 0 0}
 .search{display:flex;align-items:center;gap:.6rem;background:var(--surface);border-radius:1rem;box-shadow:var(--shadow);padding:0 .9rem;margin:1rem 0 .25rem;color:var(--muted)}
@@ -320,7 +321,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.9';
+const APP_VERSION='0.5.10';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -791,7 +792,8 @@ document.addEventListener('click',function(e){
   }
   else if(act==='edit'){
     state.editing=(state.editing===t.dataset.id)?null:t.dataset.id;render();
-    const a=$('#ed-alias');if(a)a.focus({preventScroll:true});
+    const a=$('#ed-alias');
+    if(a){a.focus({preventScroll:true});setTimeout(function(){const li=a.closest('li');if(li)li.scrollIntoView({block:'start',behavior:'smooth'});},350);}
   }
   else if(act==='ed-save')saveEditor(t.dataset.id);
   else if(act==='ed-cancel'){state.editing=null;render();}
@@ -834,6 +836,9 @@ document.addEventListener('change',function(e){
 });
 ['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,function(e){const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('over');}}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,function(e){const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.remove('over');if(ev==='drop'&&e.dataTransfer&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);}}));
+// Con el teclado abierto en un campo de la lista, la cabecera deja de estar fija para dejar sitio.
+document.addEventListener('focusin',function(e){const t=e.target;if(t&&t.matches&&t.matches('input,textarea')&&!t.closest('.stick'))document.body.classList.add('kb');});
+document.addEventListener('focusout',function(){setTimeout(function(){const a=document.activeElement;if(!(a&&a.matches&&a.matches('input,textarea')&&!a.closest('.stick')))document.body.classList.remove('kb');},60);});
 let lastDay=todayInfo().ms;
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&todayInfo().ms!==lastDay){lastDay=todayInfo().ms;if(state.demo)state.contacts=demoContacts();render();}
