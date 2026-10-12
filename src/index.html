@@ -320,7 +320,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.5.7';
+const APP_VERSION='0.5.8';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.';
 const STALE_DAYS=30;
@@ -531,6 +531,7 @@ function rowHTML(o,opts){
     if(lf)action+='<a class="wa soft" href="'+esc(waLink(lf,buildMessage(state.tpl.text,greetName(c))))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">Probar con el fijo</a>';
     action+='<button class="btn" data-act="edit" data-id="'+eid+'">Añadir número</button>';
   }
+  if(done&&!c.demo&&(wa||lf))action='<span class="wa off">✓ Felicitado</span>';
   const doneBtn=opts.showDone===false?'':'<button class="done-btn'+(done?' on':'')+'" data-act="done" data-id="'+eid+'" data-year="'+o.year+'" title="Marcar como felicitado">'+(done?'Deshacer':'Hecho')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+editBtn+'</div></div>'
@@ -755,6 +756,12 @@ function restoreBackup(raw){
 document.addEventListener('click',function(e){
   const wa=e.target.closest('a.wa');
   if(wa){state.opened[wa.dataset.id]=true;const row=wa.closest('.row');if(row)row.classList.add('opened');
+    // Al pulsar Felicitar se da por felicitado (se puede deshacer). Los de días futuros no se marcan.
+    const db=row&&row.querySelector('.done-btn');
+    if(db&&!row.classList.contains('is-future')&&state.sent[wa.dataset.id]!==+db.dataset.year){
+      state.sent[wa.dataset.id]=+db.dataset.year;persist();
+      setTimeout(function(){render();toast('Marcado como felicitado');},500);
+    }
     if(NATIVE&&AG){e.preventDefault();AG.openUrl({url:wa.href}).catch(function(){toast('No he podido abrir WhatsApp');});}
     return;}
   const t=e.target.closest('[data-act]');if(!t)return;
