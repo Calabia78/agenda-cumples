@@ -106,6 +106,11 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .done-btn.on{color:var(--muted)}
 .del-btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--late);background:transparent;color:var(--late);font-weight:600;cursor:pointer}
 .acts.nw{flex-wrap:nowrap;gap:.4rem}.acts.nw .wa{flex:1 1 0;min-width:0;padding:.55rem .4rem;gap:.35rem}.acts.nw .del-btn,.acts.nw .done-btn{flex:none}
+.edit-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.8rem;min-width:2.8rem;padding:.5rem .7rem;border-radius:.9rem;border:1.5px solid var(--line);background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
+.edit-btn.on{background:var(--accent-soft);border-color:var(--accent)}
+.acts.nw .edit-btn{flex:none}
+@media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
+@media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
 .del-btn:active{background:var(--late);color:var(--accent-fg)}
 
 .editor{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:.8rem;display:grid;gap:.7rem}
@@ -402,7 +407,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.7.3';
+const APP_VERSION='0.8.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -573,6 +578,7 @@ function previewText(text){return buildMessage(text,msgName({n:'JOSÉ LUIS',a:''
 function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c);}
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+const ICON_PENCIL=SVG('<path d="M4 20h4L19.2 8.8a2.1 2.1 0 0 0 0-3L18.2 4.8a2.1 2.1 0 0 0-3 0L4 16z"/><path d="M13.5 6.5l4 4"/>',18);
 const ICON_TRASH=SVG('<path d="M4.5 7h15"/><path d="M9.5 7V4.8h5V7"/><path d="M6.5 7l.9 12.2c.1 1 .9 1.8 1.9 1.8h5.4c1 0 1.8-.8 1.9-1.8L17.5 7"/><path d="M10 11v6M14 11v6"/>',18);
 const ICON_CAKE=SVG('<path d="M12 2.8c.8.9.8 1.7 0 2.4-.8-.7-.8-1.5 0-2.4z"/><path d="M12 6.2v2.2"/><rect x="6" y="8.4" width="12" height="4.2" rx="1.4"/><rect x="3.6" y="12.6" width="16.8" height="7.6" rx="1.8"/><path d="M3.8 16.4c1.7 1.2 2.8 1.2 4 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.4 0"/>');
 const ICON_SET=SVG('<path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/>',22);
@@ -614,7 +620,6 @@ function rowHTML(o,opts){
   if(wa)phoneHtml='<span class="phone">'+esc(fmtPhone(wa))+'</span>'+(ov.tel&&!c.demo?'<span class="tag">otro nº</span>':'');
   else if(lf)phoneHtml='<span class="phone">'+esc(fmtPhone(lf))+'</span><span>fijo</span>';
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
-  const editBtn=c.demo?'':'<button class="mini" data-act="edit" data-id="'+eid+'">Apodo / otro nº</button>';
   const soft=opts.soft||o.diff>0;
   let action;
   if(c.demo)action='<span class="wa off">Ejemplo</span>';
@@ -624,14 +629,15 @@ function rowHTML(o,opts){
   }else{
     action='<span class="nophone">Sin móvil</span>';
     if(lf)action+='<a class="wa soft" href="'+esc(waLink(lf,buildMessage(state.tpl.text,greetName(c))))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">Probar con el fijo</a>';
-    action+='<button class="btn" data-act="edit" data-id="'+eid+'">Añadir número</button>';
   }
   if(done&&!c.demo&&(wa||lf))action='<span class="wa off">✓ Felicitado</span>';
   const doneBtn=opts.showDone===false?'':'<button class="done-btn'+(done?' on':'')+'" data-act="done" data-id="'+eid+'" data-year="'+o.year+'" title="Marcar como felicitado">'+(done?'Deshacer':'Hecho')+'</button>';
-  const delBtn=(c.demo||c.manual)?'':'<button class="del-btn" data-act="excl-ask" data-id="'+eid+'" title="No es cliente nuestro: eliminar de la lista">'+ICON_TRASH+'Eliminar</button>';
+  const delBtn=(c.demo||c.manual)?'':'<button class="del-btn" data-act="excl-ask" data-id="'+eid+'" title="No es cliente nuestro: eliminar de la lista" aria-label="Eliminar: no es cliente nuestro">'+ICON_TRASH+'<span>Eliminar</span></button>';
+  const noNum=!wa&&!lf&&!c.demo;
+  const editBtn=c.demo?'':'<button class="edit-btn'+(state.editing===id?' on':'')+'" data-act="edit" data-id="'+eid+'" title="Apodo o número" aria-label="Editar apodo o número">'+ICON_PENCIL+(noNum||!wa?'<span>Añadir número</span>':'')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
-    +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+editBtn+'</div></div>'
-    +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+delBtn+doneBtn+'</div>'
+    +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
+    +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
