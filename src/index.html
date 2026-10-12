@@ -408,7 +408,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.9.1';
+const APP_VERSION='0.9.2';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -593,12 +593,14 @@ const ICON_BACK=SVG('<path d="M15 5l-7 7 7 7"/>',22);
 
 /* ---------- Filas ---------- */
 function tagFor(o,done,ahead){
-  if(done)return '<span class="tag ok">Felicitado</span>';
-  if(ahead)return '<span class="tag today">Cumple el '+esc(dayName(o.diff))+'</span>';
-  if(o.diff<0)return '<span class="tag late">Hace '+(-o.diff)+' '+plural(-o.diff,'día','días')+'</span>';
-  if(o.diff===0)return '<span class="tag today">Hoy</span>';
-  if(o.diff===1)return '<span class="tag">Mañana</span>';
-  return '<span class="tag">En '+o.diff+' días</span>';
+  const by=birthYear(o.c),age=(by==null||o.year-by<0||o.year-by>120)?null:o.year-by;
+  const a=age==null?'':' '+age;
+  if(done)return '<span class="tag ok">Felicitado'+(age==null?'':' · '+age+' años')+'</span>';
+  if(ahead)return '<span class="tag today">Cumple'+a+' el '+esc(dayName(o.diff))+'</span>';
+  if(o.diff<0)return '<span class="tag late">'+(age==null?'Hace '+(-o.diff)+' '+plural(-o.diff,'día','días'):'Cumplió'+a+' hace '+(-o.diff)+' '+plural(-o.diff,'día','días'))+'</span>';
+  if(o.diff===0)return '<span class="tag today">'+(age==null?'Hoy':'Cumple'+a+' hoy')+'</span>';
+  if(o.diff===1)return '<span class="tag">'+(age==null?'Mañana':'Cumple'+a+' mañana')+'</span>';
+  return '<span class="tag">'+(age==null?'En '+o.diff+' días':'Cumple'+a+' en '+o.diff+' días')+'</span>';
 }
 function smsTo(c){return targetPhone(c)||(c.f||[])[0]||'';}
 function smsLink(wa,text){return 'sms:+'+wa+'?body='+encodeURIComponent(text);}
@@ -645,7 +647,7 @@ function rowHTML(o,opts){
   const noNum=!wa&&!lf&&!c.demo;
   const editBtn=c.demo?'':'<button class="edit-btn'+(state.editing===id?' on':'')+'" data-act="edit" data-id="'+eid+'" title="Apodo o número" aria-label="Editar apodo o número">'+ICON_PENCIL+(noNum||!wa?'<span>Añadir número</span>':'')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
-    +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+ageBadge(c,o.year)+phoneHtml+'</div></div>'
+    +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
     +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
