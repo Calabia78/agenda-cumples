@@ -412,7 +412,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.9.5';
+const APP_VERSION='0.9.6';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -924,8 +924,7 @@ document.addEventListener('click',function(e){
     const db=row&&row.querySelector('.done-btn');
     if(db&&!row.classList.contains('is-future')&&state.sent[wa.dataset.id]!==+db.dataset.year){
       state.sent[wa.dataset.id]=+db.dataset.year;persist();
-      setTimeout(function(){render();toast('Marcado como felicitado');},500);
-    }
+      setTimeout(function(){render();toast('Marcado como felicitado');},500);    }else setTimeout(render,500);
     if(NATIVE&&AG){e.preventDefault();AG.openUrl({url:wa.href}).catch(function(){toast('No he podido abrir WhatsApp');});}
     return;}
   const sms=e.target.closest('a.sms');
