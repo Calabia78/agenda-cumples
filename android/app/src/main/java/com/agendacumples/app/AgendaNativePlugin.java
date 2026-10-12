@@ -147,7 +147,7 @@ public class AgendaNativePlugin extends Plugin {
     @PluginMethod
     public void openUrl(PluginCall call) {
         String url = call.getString("url");
-        if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+        if (url == null || !(url.startsWith("https://") || url.startsWith("http://") || url.startsWith("sms:"))) {
             call.reject("Enlace no válido");
             return;
         }

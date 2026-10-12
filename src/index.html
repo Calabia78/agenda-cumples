@@ -111,6 +111,7 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .acts.nw .edit-btn{flex:none}
 @media(min-width:390px) and (max-width:459px){.acts.nw .wa svg{display:none}}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
+.age{display:inline-flex;align-items:center;gap:.2rem;margin-left:.5rem;font-size:.85rem;font-weight:700;color:var(--edit);white-space:nowrap;vertical-align:.08em}
 .del-btn:active{background:var(--late);color:var(--accent-fg)}
 
 .editor{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:.8rem;display:grid;gap:.7rem}
@@ -407,7 +408,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.8.1';
+const APP_VERSION='0.9.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -579,6 +580,11 @@ function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c)
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 const ICON_PENCIL=SVG('<path d="M4 20h4L19.2 8.8a2.1 2.1 0 0 0 0-3L18.2 4.8a2.1 2.1 0 0 0-3 0L4 16z"/><path d="M13.5 6.5l4 4"/>',18);
+const ICON_CANDLE=SVG('<path d="M12 2.4c1.2 1.4 1.2 2.6 0 3.6-1.2-1-1.2-2.2 0-3.6z"/><rect x="8.8" y="8" width="6.4" height="11" rx="1.3"/><path d="M6.5 20.6h11"/>',14);
+// Años de nacimiento con dos cifras: de 00 a PIVOT_YY son 20xx; el resto, 19xx.
+const PIVOT_YY=13;
+function birthYear(c){const y=String(c.y==null?'':c.y);if(/^\d{4}$/.test(y))return +y;if(/^\d{2}$/.test(y))return (+y<=PIVOT_YY?2000:1900)+(+y);return null;}
+function ageBadge(c,year){const by=birthYear(c);if(by==null)return '';const a=year-by;if(a<0||a>120)return '';return '<span class="age" title="Cumple '+a+' años" aria-label="Cumple '+a+' años">'+ICON_CANDLE+a+'</span>';}
 const ICON_TRASH=SVG('<path d="M4.5 7h15"/><path d="M9.5 7V4.8h5V7"/><path d="M6.5 7l.9 12.2c.1 1 .9 1.8 1.9 1.8h5.4c1 0 1.8-.8 1.9-1.8L17.5 7"/><path d="M10 11v6M14 11v6"/>',18);
 const ICON_CAKE=SVG('<path d="M12 2.8c.8.9.8 1.7 0 2.4-.8-.7-.8-1.5 0-2.4z"/><path d="M12 6.2v2.2"/><rect x="6" y="8.4" width="12" height="4.2" rx="1.4"/><rect x="3.6" y="12.6" width="16.8" height="7.6" rx="1.8"/><path d="M3.8 16.4c1.7 1.2 2.8 1.2 4 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.6 0 1.2 1.2 2.4 1.2 3.4 0"/>');
 const ICON_SET=SVG('<path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/>',22);
@@ -594,11 +600,14 @@ function tagFor(o,done,ahead){
   if(o.diff===1)return '<span class="tag">Mañana</span>';
   return '<span class="tag">En '+o.diff+' días</span>';
 }
+function smsTo(c){return targetPhone(c)||(c.f||[])[0]||'';}
+function smsLink(wa,text){return 'sms:+'+wa+'?body='+encodeURIComponent(text);}
 function editorHTML(c){
   const ov=state.over[c.i]||{},id=esc(c.i);
   return '<div class="editor">'
     +'<label>Felicitar como<input id="ed-alias" class="field" value="'+esc(ov.alias||'')+'" placeholder="'+esc(msgName(c))+'" autocomplete="off"></label>'
     +'<label>Felicitar en otro número<input id="ed-tel" class="field" type="tel" inputmode="tel" value="'+esc(ov.tel?fmtPhone(ov.tel):'')+'" placeholder="Móvil alternativo" autocomplete="off"></label>'
+    +(smsTo(c)?'<p style="margin:0"><a class="mini sms" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">¿No tiene WhatsApp? Enviarle un SMS</a></p>':'')
     +'<p class="muted small">El texto se puede cambiar en WhatsApp antes de enviarlo. Esto se guarda solo en este dispositivo y se conserva al actualizar la lista.</p>'
     +'<div class="btns"><button class="btn primary" data-act="ed-save" data-id="'+id+'">Guardar</button><button class="btn" data-act="ed-cancel">Cancelar</button>'
     +((ov.alias||ov.tel)?'<button class="btn" data-act="ed-clear" data-id="'+id+'">Quitar apodo y número</button>':'')+'</div></div>';
@@ -636,7 +645,7 @@ function rowHTML(o,opts){
   const noNum=!wa&&!lf&&!c.demo;
   const editBtn=c.demo?'':'<button class="edit-btn'+(state.editing===id?' on':'')+'" data-act="edit" data-id="'+eid+'" title="Apodo o número" aria-label="Editar apodo o número">'+ICON_PENCIL+(noNum||!wa?'<span>Añadir número</span>':'')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
-    +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
+    +'<div class="who"><div class="name">'+esc(fullName(c))+ageBadge(c,o.year)+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
     +'<div class="acts'+((delBtn&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
     +((state.editing===id&&!c.demo)?editorHTML(c):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
@@ -907,6 +916,8 @@ document.addEventListener('click',function(e){
     }
     if(NATIVE&&AG){e.preventDefault();AG.openUrl({url:wa.href}).catch(function(){toast('No he podido abrir WhatsApp');});}
     return;}
+  const sms=e.target.closest('a.sms');
+  if(sms&&NATIVE&&AG){e.preventDefault();AG.openUrl({url:sms.href}).catch(function(){toast('No he podido abrir los mensajes');});return;}
   const t=e.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
   if(act==='settings')go('ajustes');
