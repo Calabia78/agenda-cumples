@@ -421,7 +421,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.12.0';
+const APP_VERSION='0.12.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -835,7 +835,7 @@ function viewAjustes(){
     +(NATIVE?'<p class="muted small" style="margin:.25rem 0 0">«Enviar copia» abre el menú de compartir: elige WhatsApp y el chat de la agencia. «Guardar copia» la deja en Documentos/Cumples.</p>':'')
     +(NATIVE?'<p class="muted small" style="margin:.5rem 0 0">'+(autoInfo()?'Última copia automática: '+esc(autoInfo())+'.':'Todavía no hay copia automática; se hace sola al abrir la app cada día.')+'</p>':'')
     +'<p class="muted small" style="margin:1rem 0 .4rem">Para volver a una copia:</p>'
-    +'<p><button class="btn" data-act="restore-file">Restaurar desde un archivo</button><input id="restore-in" type="file" accept=".json,application/json,text/plain" hidden></p>'
+    +'<p><button class="btn" data-act="restore-file">Restaurar desde un archivo</button><input id="restore-in" type="file" accept=".txt,.json,text/plain,application/json" hidden></p>'
     +(state.restore?'<div class="restore-box"><p style="margin:0 0 .5rem"><strong>'+esc(state.restore.summary)+'</strong></p><p style="margin:0"><button class="btn primary" data-act="restore-apply">Aplicar</button> <button class="btn" data-act="restore-cancel">Cancelar</button></p></div>':'')
     +'</section>';
   h+='<section class="panel"><h3>Borrar datos</h3><p class="muted small">Elimina de este dispositivo los contactos, lo felicitado, los apodos, los números añadidos y el mensaje.</p>'
@@ -927,7 +927,7 @@ function saveEditor(id){
 function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};}
 function pad2(n){return (n<10?'0':'')+n;}
 function dayStr(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
-function backupName(){return 'Cumples_copia_'+dayStr()+'.json';}
+function backupName(){return 'Cumples_copia_'+dayStr()+'.txt';}
 function parseBackup(raw){
   let o;
   try{o=JSON.parse(raw);}catch(e){return null;}
@@ -952,7 +952,7 @@ function applyBackup(o){
   persist();
 }
 function webDownload(name,data){
-  const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  const url=URL.createObjectURL(new Blob([data],{type:'text/plain'}));
   const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
   setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1000);
 }
@@ -971,7 +971,7 @@ async function shareBackupNow(){
     return;
   }
   try{
-    const f=new File([data],name,{type:'application/json'});
+    const f=new File([data],name,{type:'text/plain'});
     if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Copia de Cumples'});return;}
   }catch(e){if(e&&e.name==='AbortError')return;}
   webDownload(name,data);toast('Copia descargada');
@@ -1007,7 +1007,7 @@ async function autoBackup(){
   if(a.hash===hash)return;
   if(a.day===day&&a.ts&&now-a.ts<3*3600*1000)return;
   try{
-    await AG.saveBackup({name:'Cumples_copia_automatica_'+day+'.json',data:JSON.stringify(backupObj(),null,1),prefix:'Cumples_copia_automatica_',keep:3});
+    await AG.saveBackup({name:'Cumples_copia_automatica_'+day+'.txt',data:JSON.stringify(backupObj(),null,1),prefix:'Cumples_copia_automatica_',keep:3});
     try{localStorage.setItem(KEY_A,JSON.stringify({day:day,hash:hash,ts:now}));}catch(e){}
     if(state.view==='ajustes')render();
   }catch(e){}

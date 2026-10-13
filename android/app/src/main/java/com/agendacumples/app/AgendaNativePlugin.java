@@ -165,7 +165,7 @@ public class AgendaNativePlugin extends Plugin {
                 }
                 ContentValues v = new ContentValues();
                 v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-                v.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+                v.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
                 v.put(MediaStore.MediaColumns.RELATIVE_PATH, rel);
                 Uri u = cr.insert(col, v);
                 if (u == null) throw new Exception("No se pudo crear el archivo");
@@ -249,7 +249,7 @@ public class AgendaNativePlugin extends Plugin {
             }
             Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", f);
             Intent send = new Intent(Intent.ACTION_SEND);
-            send.setType("application/json");
+            send.setType("text/plain");
             send.putExtra(Intent.EXTRA_STREAM, uri);
             send.putExtra(Intent.EXTRA_SUBJECT, name);
             send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
