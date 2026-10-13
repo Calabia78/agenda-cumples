@@ -112,6 +112,10 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .acts.nw .edit-btn{flex:none}
 @media(max-width:389px){.acts.nw .del-btn span{display:none}.acts.nw .del-btn{padding:.5rem .7rem}}
 .wa.off{flex:0 1 auto}
+.wa-pair{flex:1 1 100%;display:flex;gap:.5rem}
+.wa-pair .wa{flex:1 1 0;min-width:0;padding:.55rem .4rem;gap:.35rem}
+.wa.alt{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.acts.round .edit-btn,.acts.round .del-btn,.acts.round .done-btn{flex:1 1 auto;justify-content:center}
 .smsbar{position:fixed;left:.8rem;right:.8rem;bottom:calc(.8rem + env(safe-area-inset-bottom,0px));z-index:70;display:flex;align-items:center;gap:.6rem;background:var(--fg);color:var(--bg);padding:.6rem .6rem .6rem .95rem;border-radius:1rem;box-shadow:0 6px 24px rgba(0,0,0,.28);font-weight:600}
 .smsbar[hidden]{display:none}
 .smsbar span{flex:1;font-size:.95rem;line-height:1.25}
@@ -433,19 +437,22 @@ function planNotifications(contacts,sent,now,days,times){
   out.sort((a,b)=>a.when-b.when);
   return out;
 }
-function buildMessage(tpl,name){return String(tpl).replace(/\{nombre\}/gi,name);}
+function buildMessage(tpl,name,age){return String(tpl).replace(/\{nombre\}/gi,name).replace(/\{edad\}/gi,age==null?'':String(age));}
 function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(text);}
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.14.1';
+const APP_VERSION='0.15.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
-const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
-const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
+const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, desde tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
+const DEFAULT_ROUND='¡Felicidades por esos {edad}! Que los celebres como mereces. Un abrazo de Mari, Cova y Sara, desde tu agencia Occident';
+const ROUND_AGES=[20,30,40,50,60,65,70,75,80,85,90,95,100];
+const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
 const STALE_DAYS=30;
 function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){state.storageOK=false;return false;}}
 function probeStorage(){try{localStorage.setItem('cumples-clientes:probe','1');localStorage.removeItem('cumples-clientes:probe');return true;}catch(e){return false;}}
+function loadTplR(t){return {text:t&&typeof t.text==='string'&&t.text.trim()?t.text:DEFAULT_ROUND};}
 function loadTpl(t){
   if(t&&typeof t.text==='string')return {text:OLD_DEFAULTS.indexOf(t.text)>=0?DEFAULT_MSG:t.text};
   if(t&&Array.isArray(t.items)&&t.items[t.active|0])return {text:t.items[t.active|0].text};
@@ -486,11 +493,12 @@ const state={
   nowa:(savedS.nowa&&typeof savedS.nowa==='object')?savedS.nowa:{},
   confirmExcl:null,
   tpl:loadTpl(savedS.tpl),
+  tplr:loadTplR(savedS.tplr),
   notif:loadNotif(savedS.notif),
   q:'',shown:40,
   editing:null,opened:{},importMsg:null,pending:null,restore:null,armed:false
 };
-function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif,imported:state.imported});scheduleSync();}
+function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,tplr:state.tplr,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif,imported:state.imported});scheduleSync();}
 function notifTimes(){
   const o={};
   Object.keys(state.notif).forEach(function(k){const v=state.notif[k];o[k]=v.on?v.t.split(':').map(Number):null;});
@@ -625,7 +633,7 @@ let toastTimer;
 function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
 function dayName(off){const t=todayInfo();return new Intl.DateTimeFormat('es-ES',{weekday:'long'}).format(new Date(t.y,t.m-1,t.d+off));}
 function dateLabel(off){const t=todayInfo();return new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long'}).format(new Date(t.y,t.m-1,t.d+off));}
-function previewText(text){return buildMessage(text,msgName({n:'JOSÉ LUIS',a:''}));}
+function previewText(text){return buildMessage(text,msgName({n:'JOSÉ LUIS',a:''}),70);}
 function greetName(c){const ov=state.over[c.i];return (ov&&ov.alias)||msgName(c);}
 function targetPhone(c){const ov=state.over[c.i];return (ov&&ov.tel)||(c.p||[])[0]||'';}
 const SVG=(p,w)=>'<svg viewBox="0 0 24 24" width="'+(w||20)+'" height="'+(w||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
@@ -659,14 +667,17 @@ function tagFor(o,done,ahead){
   if(o.diff===1)return '<span class="tag">'+(age==null?'Mañana':'Cumple'+a+' mañana')+'</span>';
   return '<span class="tag">'+(age==null?'En '+numEs(o.diff)+' días':'Cumple'+a+' en '+numEs(o.diff)+' días')+'</span>';
 }
+function ageAt(c,year){const by=birthYear(c);if(by==null)return null;const a=year-by;return (a<0||a>120)?null:a;}
+function isRound(a){return a!=null&&ROUND_AGES.indexOf(a)>=0;}
+function msgText(c,age,round){return buildMessage(round?state.tplr.text:state.tpl.text,greetName(c),age);}
 function smsTo(c){return targetPhone(c)||(c.f||[])[0]||'';}
 function smsLink(wa,text){return 'sms:+'+wa+'?body='+encodeURIComponent(text);}
-function editorHTML(c){
+function editorHTML(c,age){
   const ov=state.over[c.i]||{},id=esc(c.i);
   return '<div class="editor">'
     +'<label>Felicitar como<input id="ed-alias" class="field" value="'+esc(ov.alias||'')+'" placeholder="'+esc(msgName(c))+'" autocomplete="off"></label>'
     +'<label>Felicitar en otro número<input id="ed-tel" class="field" type="tel" inputmode="tel" value="'+esc(ov.tel?fmtPhone(ov.tel):'')+'" placeholder="Móvil alternativo" autocomplete="off"></label>'
-    +(smsTo(c)?'<p style="margin:0"><a class="mini sms" data-id="'+id+'" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">¿No tiene WhatsApp? Enviarle un SMS</a></p>':'')
+    +(smsTo(c)?'<p style="margin:0"><a class="mini sms" data-id="'+id+'" href="'+esc(smsLink(smsTo(c),msgText(c,age)))+'">¿No tiene WhatsApp? Enviarle un SMS</a></p>':'')
     +(state.nowa[c.i]?'<p style="margin:0"><button class="mini" data-act="nowa-off" data-id="'+id+'">Volver a usar WhatsApp con este cliente</button></p>':'')
     +'<p class="muted small">El texto se puede cambiar en WhatsApp antes de enviarlo. Esto se guarda solo en este dispositivo y se conserva al actualizar la lista.</p>'
     +'<div class="btns"><button class="btn primary" data-act="ed-save" data-id="'+id+'">Guardar</button><button class="btn" data-act="ed-cancel">Cancelar</button>'
@@ -691,16 +702,21 @@ function rowHTML(o,opts){
   if(ov.alias&&!c.demo)phoneHtml+='<span>Felicitar como <b>'+esc(ov.alias)+'</b></span>';
   const soft=opts.soft||o.diff>0;
   let action;
+  const age=ageAt(c,o.year),round=!c.demo&&!done&&isRound(age);
+  let pair=false;
   if(c.demo)action='<span class="wa off">Ejemplo</span>';
   else if(wa&&state.nowa[id]){
-    action='<a class="wa sms'+(soft?' soft':'')+'" href="'+esc(smsLink(wa,buildMessage(state.tpl.text,greetName(c))))+'" data-id="'+eid+'">'+'SMS</a>';
+    action='<a class="wa sms'+(round?' alt':'')+(soft?' soft':'')+'" href="'+esc(smsLink(wa,msgText(c,age)))+'" data-id="'+eid+'">'+'SMS</a>';
+    if(round){pair=true;action+='<a class="wa sms'+(soft?' soft':'')+'" href="'+esc(smsLink(wa,msgText(c,age,true)))+'" data-id="'+eid+'">SMS por los '+age+'</a>';}
   }else if(wa){
-    const text=buildMessage(state.tpl.text,greetName(c));
-    action='<a class="wa'+(soft?' soft':'')+'" href="'+esc(waLink(wa,text))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">'+ICON_WA+'Felicitar</a>';
+    const href=function(r){return esc(waLink(wa,msgText(c,age,r)));};
+    action='<a class="wa'+(round?' alt':'')+(soft?' soft':'')+'" href="'+href(false)+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">'+ICON_WA+'Felicitar</a>';
+    if(round){pair=true;action+='<a class="wa'+(soft?' soft':'')+'" href="'+href(true)+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">'+ICON_WA+'Por los '+age+'</a>';}
   }else{
     action='<span class="nophone">Sin móvil</span>';
-    if(lf)action+='<a class="wa soft" href="'+esc(waLink(lf,buildMessage(state.tpl.text,greetName(c))))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">Probar con el fijo</a>';
+    if(lf)action+='<a class="wa soft" href="'+esc(waLink(lf,msgText(c,age)))+'" target="_blank" rel="noopener noreferrer" data-id="'+eid+'">Probar con el fijo</a>';
   }
+  if(pair)action='<div class="wa-pair">'+action+'</div>';
   if(done&&!c.demo&&(wa||lf))action='<span class="wa off">✓ Felicitado</span>';
   const doneBtn=opts.showDone===false?'':'<button class="done-btn'+(done?' on':'')+'" data-act="done" data-id="'+eid+'" data-year="'+o.year+'" title="Marcar como felicitado">'+(done?'Deshacer':'Hecho')+'</button>';
   const delBtn=(c.demo||c.manual)?'':'<button class="del-btn" data-act="excl-ask" data-id="'+eid+'" title="No es cliente nuestro: eliminar de la lista" aria-label="Eliminar: no es cliente nuestro">'+ICON_TRASH+'<span>Eliminar</span></button>';
@@ -708,9 +724,9 @@ function rowHTML(o,opts){
   const editBtn=c.demo?'':'<button class="edit-btn'+(state.editing===id?' on':'')+'" data-act="edit" data-id="'+eid+'" title="Apodo o número" aria-label="Editar apodo o número">'+ICON_PENCIL+(noNum||!wa?'<span>Añadir número</span>':'')+'</button>';
   return '<li class="'+cls.join(' ')+'"><div class="date"><span class="dd">'+c.d+'</span><span class="mm">'+MONTHS_ES[c.m-1]+'</span></div>'
     +'<div class="who"><div class="name">'+esc(fullName(c))+'</div><div class="meta">'+tagFor(o,done,opts.ahead)+phoneHtml+'</div></div>'
-    +'<div class="acts'+((delBtn&&!done&&(wa||(done&&lf)))?' nw':'')+'">'+action+editBtn+delBtn+doneBtn+'</div>'
-    +((state.opened[id]&&!c.demo&&smsTo(c)&&!state.nowa[id])?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" data-id="'+eid+'" href="'+esc(smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c))))+'">Enviarle un SMS</a></p>':'')
-    +((state.editing===id&&!c.demo)?editorHTML(c):'')
+    +'<div class="acts'+(pair?' round':((delBtn&&!done&&(wa||(done&&lf)))?' nw':''))+'">'+action+editBtn+delBtn+doneBtn+'</div>'
+    +((state.opened[id]&&!c.demo&&smsTo(c)&&!state.nowa[id])?'<p class="sms-line">¿No tiene WhatsApp? <a class="sms" data-id="'+eid+'" href="'+esc(smsLink(smsTo(c),msgText(c,age)))+'">Enviarle un SMS</a></p>':'')
+    +((state.editing===id&&!c.demo)?editorHTML(c,age):'')
     +((state.confirmExcl===id&&!c.demo)?exclHTML(c):'')+'</li>';
 }
 function listHTML(items,opts){return '<ul class="list">'+items.map(o=>rowHTML(o,opts)).join('')+'</ul>';}
@@ -802,10 +818,14 @@ function viewAjustes(){
   const t=todayInfo(),hoy=String(t.d).padStart(2,'0')+'/'+String(t.m).padStart(2,'0');
   const last=state.imported?new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric'}).format(new Date(state.imported)):'';
   const P={};let h='';
-  h+='<section class="panel"><h3>Mensaje de felicitación</h3><p class="muted small">Es el mismo para todos los clientes. Escribe {nombre} donde quieras que salga el nombre; si a un cliente le has puesto un apodo, sale el apodo. Siempre se puede cambiar en WhatsApp antes de enviar.</p>'
+  h+='<section class="panel"><h3>Mensaje de felicitación</h3><p class="muted small">Es el mismo para todos los clientes. Escribe {nombre} donde quieras que salga el nombre; si a un cliente le has puesto un apodo, sale el apodo. También puedes usar {edad}. Siempre se puede cambiar en WhatsApp antes de enviar.</p>'
     +'<textarea id="msg" class="field" rows="4" aria-label="Mensaje de felicitación">'+esc(state.tpl.text)+'</textarea>'
     +'<p class="preview" id="msg-prev">'+esc(previewText(state.tpl.text))+'</p>'
     +'<button class="btn" data-act="reset-msg">Restaurar mensaje original</button></section>';
+  h+='<section class="panel"><h3>Mensaje para cifras redondas</h3><p class="muted small">Cuando alguien cumple '+ROUND_AGES.join(', ')+' años, en su ficha aparecen dos botones: el mensaje normal y este. Escribe {edad} donde quieras que salga la edad (y {nombre} si quieres el nombre).</p>'
+    +'<textarea id="msgr" class="field" rows="4" aria-label="Mensaje para cifras redondas">'+esc(state.tplr.text)+'</textarea>'
+    +'<p class="preview" id="msgr-prev">'+esc(previewText(state.tplr.text))+'</p>'
+    +'<button class="btn" data-act="reset-msgr">Restaurar mensaje original</button></section>';
   P.mensaje=h;h='';
   if(NATIVE){
     const th=loadTheme();
@@ -1045,7 +1065,7 @@ function saveEditor(id){
   if(alias||tel)state.over[id]={alias:alias,tel:tel};else delete state.over[id];
   state.editing=null;persist();render();toast('Guardado');
 }
-function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};}
+function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,tplr:state.tplr,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};}
 function pad2(n){return (n<10?'0':'')+n;}
 function dayStr(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function dayEs(){const d=new Date();return pad2(d.getDate())+'-'+pad2(d.getMonth()+1)+'-'+d.getFullYear();}
@@ -1071,6 +1091,7 @@ function applyBackup(o){
     state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);
   }
   if(o.tpl)state.tpl=loadTpl(o.tpl);
+  if(o.tplr)state.tplr=loadTplR(o.tplr);
   if(o.notif)state.notif=loadNotif(o.notif);
   persist();
 }
@@ -1124,7 +1145,7 @@ function autoInfo(){
 function hashStr(str){let h=5381;for(let i=0;i<str.length;i++)h=((h<<5)+h+str.charCodeAt(i))|0;return String(h);}
 async function autoBackup(){
   if(!NATIVE||!AG||state.demo)return;
-  const body={sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};
+  const body={sent:state.sent,tpl:state.tpl,tplr:state.tplr,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};
   const hash=hashStr(JSON.stringify(body));
   const a=autoState(),now=Date.now(),day=dayStr();
   if(a.hash===hash)return;
@@ -1178,7 +1199,7 @@ document.addEventListener('click',function(e){
     const c=contactsAll().find(x=>x.i===t.dataset.id);
     if(c){
       state.nowa[c.i]=true;state.opened[c.i]=true;persist();
-      const url=smsLink(smsTo(c),buildMessage(state.tpl.text,greetName(c)));
+      const url=smsLink(smsTo(c),msgText(c,ageAt(c,todayInfo().y)));
       hideSmsBar();render();
       if(NATIVE&&AG)AG.openUrl({url:url}).catch(function(){toast('No he podido abrir los mensajes');});else location.href=url;
     }
@@ -1207,6 +1228,7 @@ document.addEventListener('click',function(e){
   else if(act==='import-apply'&&state.pending){const p=state.pending;applyImport(p.res,p.added,p.removed,p.uri);}
   else if(act==='import-cancel'){state.pending=null;render();}
   else if(act==='more'){state.shown+=40;renderHomeBody();}
+  else if(act==='reset-msgr'){state.tplr={text:DEFAULT_ROUND};persist();render();toast('Mensaje original restaurado');}
   else if(act==='reset-msg'){state.tpl={text:DEFAULT_MSG};persist();render();toast('Mensaje original restaurado');}
   else if(act==='notif-reset'){state.notif=loadNotif(null);persist();render();toast('Horas originales restauradas');}
   else if(act==='save-backup')saveBackupNow();
@@ -1218,7 +1240,7 @@ document.addEventListener('click',function(e){
     if(!state.armed){state.armed=true;render();setTimeout(function(){if(state.armed){state.armed=false;if(state.view==='ajustes')render();}},5000);return;}
     try{localStorage.removeItem(KEY_C);localStorage.removeItem(KEY_S);}catch(err){}
     state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.nowa={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.restore=null;state.armed=false;
-    state.tpl={text:DEFAULT_MSG};state.notif=loadNotif(null);
+    state.tpl={text:DEFAULT_MSG};state.tplr={text:DEFAULT_ROUND};state.notif=loadNotif(null);
     scheduleSync();render();toast('Datos borrados');
   }
 });
@@ -1226,6 +1248,7 @@ document.addEventListener('input',function(e){
   const t=e.target;
   if(t.id==='q'){state.q=t.value;state.shown=40;renderHomeBody();}
   else if(t.id==='msg'){state.tpl.text=t.value;persist();const p=$('#msg-prev');if(p)p.textContent=previewText(t.value);}
+  else if(t.id==='msgr'){state.tplr.text=t.value;persist();const p=$('#msgr-prev');if(p)p.textContent=previewText(t.value);}
 });
 document.addEventListener('change',function(e){
   const t=e.target;
