@@ -148,6 +148,13 @@ textarea.field{resize:vertical;line-height:1.4}
 .more{display:block;margin:1rem auto 0}
 .bar{display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem}
 .panel{background:var(--surface);border-radius:1.1rem;box-shadow:var(--shadow);padding:1.1rem;margin-top:1rem}
+.nrow{display:flex;align-items:center;gap:.7rem;padding:.65rem 0;border-top:1px solid var(--line)}
+.nrow .tx{flex:1;min-width:0}
+.nrow b{display:block;font-size:.95rem}
+.nrow small{display:block;color:var(--muted);font-size:.8rem;line-height:1.25}
+.nrow .sw{flex:none;width:1.3rem;height:1.3rem;accent-color:var(--brand-a)}
+.nrow .tm{flex:none;width:6.2rem;padding:.4rem .5rem;text-align:center}
+.nrow .tm:disabled{opacity:.4}
 .tiles{display:grid;gap:.6rem;margin-top:1rem}
 .tile{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;background:var(--surface);border:0;border-radius:1.1rem;box-shadow:var(--shadow);padding:.9rem 1rem;cursor:pointer;color:var(--fg)}
 .tile .ic{flex:none;width:2.9rem;height:2.9rem;border-radius:.9rem;display:grid;place-items:center;background:var(--brand-a);color:#fff}
@@ -402,6 +409,7 @@ function planNotifications(contacts,sent,now,days,times){
     const unsent=o=>sent[o.c.i]!==o.year;
     const ymd=y*10000+m*100+d;
     const push=(slot,hm,type,count,body)=>{
+      if(!hm)return;
       const when=new Date(y,m-1,d,hm[0],hm[1],0).getTime();
       if(when<=nowMs)return;
       out.push({id:ymd*10+slot,when:when,type:type,count:count,title:'Cumpleaños de clientes',body:body});
@@ -429,7 +437,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.13.0';
+const APP_VERSION='0.14.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -441,6 +449,16 @@ function loadTpl(t){
   if(t&&typeof t.text==='string')return {text:OLD_DEFAULTS.indexOf(t.text)>=0?DEFAULT_MSG:t.text};
   if(t&&Array.isArray(t.items)&&t.items[t.active|0])return {text:t.items[t.active|0].text};
   return {text:DEFAULT_MSG};
+}
+
+const NOTIF_DEF={morning:{on:true,t:'09:00'},afternoon:{on:true,t:'16:00'},friday:{on:true,t:'13:30'},weekend:{on:true,t:'10:00'}};
+function loadNotif(x){
+  const o={};
+  Object.keys(NOTIF_DEF).forEach(function(k){
+    const v=x&&typeof x==='object'?x[k]:null;
+    o[k]={on:v&&typeof v.on==='boolean'?v.on:true,t:v&&/^([01]?\d|2[0-3]):[0-5]\d$/.test(v.t||'')?String(v.t).replace(/^(\d):/,'0$1:'):NOTIF_DEF[k].t};
+  });
+  return o;
 }
 
 function todayInfo(){const n=new Date(),y=n.getFullYear(),m=n.getMonth()+1,d=n.getDate();return {y:y,m:m,d:d,ms:Date.UTC(y,m-1,d),dow:n.getDay()};}
@@ -467,10 +485,17 @@ const state={
   nowa:(savedS.nowa&&typeof savedS.nowa==='object')?savedS.nowa:{},
   confirmExcl:null,
   tpl:loadTpl(savedS.tpl),
+  notif:loadNotif(savedS.notif),
   q:'',shown:40,
   editing:null,opened:{},importMsg:null,pending:null,restore:null,armed:false
 };
-function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,imported:state.imported});scheduleSync();}
+function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif,imported:state.imported});scheduleSync();}
+function notifTimes(){
+  const o={};
+  Object.keys(state.notif).forEach(function(k){const v=state.notif[k];o[k]=v.on?v.t.split(':').map(Number):null;});
+  return o;
+}
+function fmtHM(t){const a=t.split(':');return (+a[0])+':'+a[1];}
 function contactsAll(){return state.contacts.concat(state.manual);}
 
 /* ---------- Puente nativo (solo en la APK; en el navegador no hace nada) ---------- */
@@ -503,7 +528,7 @@ async function syncNotifications(){
     if(old.length)await LN.cancel({notifications:old.map(n=>({id:n.id}))});
     if(!granted||state.demo)return;
     try{await LN.createChannel({id:'cumples',name:'Cumpleaños de clientes',description:'Avisos de cumpleaños',importance:4,visibility:1,vibration:true});}catch(e){}
-    const plan=planNotifications(contactsAll(),state.sent,new Date(),21).slice(0,60);
+    const plan=planNotifications(contactsAll(),state.sent,new Date(),21,notifTimes()).slice(0,60);
     if(plan.length)await LN.schedule({notifications:plan.map(x=>({id:x.id,title:x.title,body:x.body,channelId:'cumples',schedule:{at:new Date(x.when),allowWhileIdle:true}}))});
   }catch(e){}
 }
@@ -811,7 +836,7 @@ function viewAjustes(){
   }
   h+='</section>';
   P.clientes=h;h='';
-  const plan=planNotifications(contactsAll(),state.sent,new Date(),21);
+  const plan=planNotifications(contactsAll(),state.sent,new Date(),21,notifTimes());
   const fmtDay=new Intl.DateTimeFormat('es-ES',{weekday:'short',day:'numeric',month:'short'});
   const hhmm=function(ms){const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
   const days=[],byDay={};
@@ -827,7 +852,12 @@ function viewAjustes(){
     return '<li><span class="d">'+esc(lab.charAt(0).toUpperCase()+lab.slice(1))+'</span><span class="t">'+esc(g.times.join(' · '))+'<small>'+esc(sub)+'</small></span></li>';
   }).join('');
   h+='<section class="panel"><h3>'+(NATIVE?'Avisos del móvil':'Avisos del móvil (vista previa)')+'</h3>'
-    +'<p class="muted small">Entre semana, a las 9:00 y a las 16:00. El viernes, a las 13:30, el resumen del fin de semana. Sábado y domingo, a las 10:00.</p>'
+    +'<p class="muted small">Elige qué avisos quieres y a qué hora te llegan. Solo suenan si hay alguien por felicitar.</p>'
+    +[['morning','Aviso de la mañana','De lunes a viernes'],['afternoon','Recordatorio de la tarde','De lunes a viernes, si todavía queda alguien'],['friday','Resumen del fin de semana','Los viernes: quién cumple el sábado y el domingo'],['weekend','Sábado y domingo','El mismo día del cumpleaños']].map(function(r){
+      const v=state.notif[r[0]];
+      return '<div class="nrow"><label class="tx"><b>'+r[1]+'</b><small>'+r[2]+'</small></label><input type="checkbox" class="sw" data-nk="'+r[0]+'"'+(v.on?' checked':'')+' aria-label="'+r[1]+'"><input type="time" class="field tm" data-nt="'+r[0]+'" value="'+v.t+'"'+(v.on?'':' disabled')+' aria-label="Hora: '+r[1]+'"></div>';
+    }).join('')
+    +'<p style="margin:.6rem 0 0"><button class="btn" data-act="notif-reset">Restaurar horas originales</button></p>'
     +(NATIVE?'<p id="notif-status" class="muted small">Comprobando…</p>':'')
     +'<details class="more"><summary>Próximos avisos</summary>'+(dayRows?'<ul class="avisos">'+dayRows+'</ul>':'<p class="muted small">No hay avisos previstos en las próximas semanas.</p>')+'</details>'
     +(NATIVE?'<details class="more"><summary>¿No te llegan los avisos?</summary><p class="muted small">En Ajustes del móvil → Aplicaciones → Cumples → Batería, elige «Sin restricciones».</p></details>':'')
@@ -903,7 +933,14 @@ function viewAjustes(){
 }
 function notifTileText(){
   if(!NATIVE)return 'Solo funcionan en la app del móvil';
-  if(notifPerm==='granted')return 'Activados · 9:00 y 16:00';
+  if(notifPerm==='granted'){
+    const n=state.notif,l=[];
+    if(n.morning.on)l.push(fmtHM(n.morning.t));
+    if(n.afternoon.on)l.push(fmtHM(n.afternoon.t));
+    const extra=(n.friday.on||n.weekend.on)?' · fin de semana':'';
+    if(!l.length&&!extra)return 'Todos los avisos apagados';
+    return 'Activados'+(l.length?' · '+l.join(' y '):'')+extra;
+  }
   if(notifPerm==='denied'||notifPerm==='error'||notifPerm==='prompt')return 'Desactivados · toca para activarlos';
   return 'Comprobando…';
 }
@@ -1002,7 +1039,7 @@ function saveEditor(id){
   if(alias||tel)state.over[id]={alias:alias,tel:tel};else delete state.over[id];
   state.editing=null;persist();render();toast('Guardado');
 }
-function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};}
+function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};}
 function pad2(n){return (n<10?'0':'')+n;}
 function dayStr(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 function dayEs(){const d=new Date();return pad2(d.getDate())+'-'+pad2(d.getMonth()+1)+'-'+d.getFullYear();}
@@ -1028,6 +1065,7 @@ function applyBackup(o){
     state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);
   }
   if(o.tpl)state.tpl=loadTpl(o.tpl);
+  if(o.notif)state.notif=loadNotif(o.notif);
   persist();
 }
 function webDownload(name,data){
@@ -1080,7 +1118,7 @@ function autoInfo(){
 function hashStr(str){let h=5381;for(let i=0;i<str.length;i++)h=((h<<5)+h+str.charCodeAt(i))|0;return String(h);}
 async function autoBackup(){
   if(!NATIVE||!AG||state.demo)return;
-  const body={sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};
+  const body={sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,notif:state.notif};
   const hash=hashStr(JSON.stringify(body));
   const a=autoState(),now=Date.now(),day=dayStr();
   if(a.hash===hash)return;
@@ -1164,6 +1202,7 @@ document.addEventListener('click',function(e){
   else if(act==='import-cancel'){state.pending=null;render();}
   else if(act==='more'){state.shown+=40;renderHomeBody();}
   else if(act==='reset-msg'){state.tpl={text:DEFAULT_MSG};persist();render();toast('Mensaje original restaurado');}
+  else if(act==='notif-reset'){state.notif=loadNotif(null);persist();render();toast('Horas originales restauradas');}
   else if(act==='save-backup')saveBackupNow();
   else if(act==='share-backup')shareBackupNow();
   else if(act==='restore-file')restoreFromFile();
@@ -1173,7 +1212,7 @@ document.addEventListener('click',function(e){
     if(!state.armed){state.armed=true;render();setTimeout(function(){if(state.armed){state.armed=false;if(state.view==='ajustes')render();}},5000);return;}
     try{localStorage.removeItem(KEY_C);localStorage.removeItem(KEY_S);}catch(err){}
     state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.nowa={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.restore=null;state.armed=false;
-    state.tpl={text:DEFAULT_MSG};
+    state.tpl={text:DEFAULT_MSG};state.notif=loadNotif(null);
     scheduleSync();render();toast('Datos borrados');
   }
 });
@@ -1185,6 +1224,8 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   const t=e.target;
   if(t.id==='file'){handleFile(t.files&&t.files[0]);}
+  else if(t.dataset&&t.dataset.nk){state.notif[t.dataset.nk].on=t.checked;persist();render();}
+  else if(t.dataset&&t.dataset.nt){if(/^\d\d:\d\d$/.test(t.value)){state.notif[t.dataset.nt].t=t.value;persist();render();}}
   else if(t.id==='restore-in'&&t.files&&t.files[0]){t.files[0].text().then(loadRestoreText);}
 });
 ['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,function(e){const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('over');}}));
