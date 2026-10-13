@@ -155,6 +155,7 @@ textarea.field{resize:vertical;line-height:1.4}
 .nrow .sw{flex:none;width:1.3rem;height:1.3rem;accent-color:var(--brand-a)}
 .nrow .tm{flex:none;width:6.2rem;padding:.4rem .5rem;text-align:center}
 .nrow .tm:disabled{opacity:.4}
+.about-logo{display:grid;place-items:center;width:4rem;height:4rem;margin:.2rem auto .5rem;border-radius:1.1rem;background:var(--brand-a);color:#fff}
 .tiles{display:grid;gap:.6rem;margin-top:1rem}
 .tile{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;background:var(--surface);border:0;border-radius:1.1rem;box-shadow:var(--shadow);padding:.9rem 1rem;cursor:pointer;color:var(--fg)}
 .tile .ic{flex:none;width:2.9rem;height:2.9rem;border-radius:.9rem;display:grid;place-items:center;background:var(--brand-a);color:#fff}
@@ -437,7 +438,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.14.0';
+const APP_VERSION='0.14.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -903,7 +904,12 @@ function viewAjustes(){
     avisos:{t:'Avisos',html:P.avisos},
     descartados:{t:'Clientes descartados',html:P.descartados},
     copia:{t:'Copia de seguridad',html:P.copia},
-    mas:{t:'Más',html:P.mano+P.actual+P.borrar}
+    mas:{t:'Más',html:P.mano+P.actual+P.borrar},
+    acerca:{t:'Acerca de',html:'<section class="panel about"><div class="about-logo">'+ICON_CAKE.replace('width="20"','width="34"').replace('height="20"','height="34"')+'</div><h3 style="text-align:center">Cumples</h3><p class="muted small" style="text-align:center">Versión '+APP_VERSION+'</p>'
+      +'<p>Recordatorio de cumpleaños de clientes con felicitación por WhatsApp.</p>'
+      +'<p><b>Aplicación independiente.</b> No es una app oficial ni está vinculada a ninguna empresa.</p>'
+      +'<p><b>Privacidad.</b> Todos los datos se guardan solo en este móvil. La app no envía información a ningún servidor, salvo la consulta de nuevas versiones.</p>'
+      +'<p class="muted small" style="margin-bottom:0">Se ofrece tal cual, sin garantía.</p></section>'}
   };
   const sec=SECS[state.sec];
   if(sec){
@@ -925,11 +931,11 @@ function viewAjustes(){
     {k:'copia',ic:SVG('<path d="M12 4v10M8 10.5l4 4 4-4"/><path d="M4.5 15v3.5h15V15"/>',24),t:'Copia de seguridad',
       sub:NATIVE&&autoInfo()?'Última automática: '+autoInfo():'Guardar, enviar y restaurar'},
     {k:'mas',ic:SVG('<circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/>',24),t:'Más',
-      sub:'Contactos de prueba, actualizaciones y borrar datos',dot:!!u.newer}
+      sub:'Contactos de prueba, actualizaciones y borrar datos',dot:!!u.newer},
+    {k:'acerca',ic:SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>',24),t:'Acerca de',sub:'Versión '+APP_VERSION+' · privacidad'}
   ];
   $view.innerHTML='<div class="bar"><button class="icon-btn solid" data-act="back" aria-label="Volver">'+ICON_BACK+'</button><h2>Ajustes</h2></div>'
-    +'<div class="tiles">'+tiles.map(function(x){return '<button class="tile" data-act="sec" data-sec="'+x.k+'"><span class="ic">'+x.ic+'</span><span class="tx"><b>'+x.t+'</b><small'+(x.sid?' id="'+x.sid+'"':'')+'>'+esc(x.sub)+'</small></span>'+(x.dot?'<span class="dot" aria-label="Necesita atención"></span>':'')+'<span class="chev">'+SVG('<path d="M9 5l7 7-7 7"/>',20)+'</span></button>';}).join('')+'</div>'
-    +'<p class="muted small" style="margin-top:1.25rem;text-align:center">Versión '+APP_VERSION+'</p>';
+    +'<div class="tiles">'+tiles.map(function(x){return '<button class="tile" data-act="sec" data-sec="'+x.k+'"><span class="ic">'+x.ic+'</span><span class="tx"><b>'+x.t+'</b><small'+(x.sid?' id="'+x.sid+'"':'')+'>'+esc(x.sub)+'</small></span>'+(x.dot?'<span class="dot" aria-label="Necesita atención"></span>':'')+'<span class="chev">'+SVG('<path d="M9 5l7 7-7 7"/>',20)+'</span></button>';}).join('')+'</div>';
 }
 function notifTileText(){
   if(!NATIVE)return 'Solo funcionan en la app del móvil';
