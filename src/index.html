@@ -421,7 +421,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.12.1';
+const APP_VERSION='0.12.2';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -927,7 +927,8 @@ function saveEditor(id){
 function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};}
 function pad2(n){return (n<10?'0':'')+n;}
 function dayStr(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
-function backupName(){return 'Cumples_copia_'+dayStr()+'.txt';}
+function dayEs(){const d=new Date();return pad2(d.getDate())+'-'+pad2(d.getMonth()+1)+'-'+d.getFullYear();}
+function backupName(){return 'COPIA_SEGURIDAD_CUMPLES_'+dayEs()+'.txt';}
 function parseBackup(raw){
   let o;
   try{o=JSON.parse(raw);}catch(e){return null;}
@@ -1007,7 +1008,7 @@ async function autoBackup(){
   if(a.hash===hash)return;
   if(a.day===day&&a.ts&&now-a.ts<3*3600*1000)return;
   try{
-    await AG.saveBackup({name:'Cumples_copia_automatica_'+day+'.txt',data:JSON.stringify(backupObj(),null,1),prefix:'Cumples_copia_automatica_',keep:3});
+    await AG.saveBackup({name:'COPIA_AUTOMATICA_CUMPLES_'+dayEs()+'.txt',data:JSON.stringify(backupObj(),null,1),prefix:'COPIA_AUTOMATICA_CUMPLES_',keep:3});
     try{localStorage.setItem(KEY_A,JSON.stringify({day:day,hash:hash,ts:now}));}catch(e){}
     if(state.view==='ajustes')render();
   }catch(e){}
