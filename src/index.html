@@ -421,7 +421,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.12.2';
+const APP_VERSION='0.12.3';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -509,7 +509,7 @@ async function refreshNotifStatus(){
 async function testNotif(){
   try{
     try{await LN.createChannel({id:'cumples',name:'Cumpleaños de clientes',description:'Avisos de cumpleaños',importance:4,visibility:1,vibration:true});}catch(e){}
-    await LN.schedule({notifications:[{id:1,title:'Cumpleaños de clientes',body:'Así te avisaré: «Hoy tienes 2 clientes por felicitar.»',channelId:'cumples',schedule:{at:new Date(Date.now()+5000),allowWhileIdle:true}}]});
+    await LN.schedule({notifications:[{id:1,title:'Cumpleaños de clientes',body:'Hoy tienes 2 clientes por felicitar.',channelId:'cumples',schedule:{at:new Date(Date.now()+5000),allowWhileIdle:true}}]});
     toast('Te llegará en unos segundos. Puedes salir de la app.');
   }catch(e){toast('No he podido programar el aviso de prueba');}
 }
