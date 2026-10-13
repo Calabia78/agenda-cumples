@@ -442,17 +442,18 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.15.0';
+const APP_VERSION='0.15.1';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, desde tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
-const DEFAULT_ROUND='¡Felicidades por esos {edad}! Que los celebres como mereces. Un abrazo de Mari, Cova y Sara, desde tu agencia Occident';
+const DEFAULT_ROUND='🎂 ¡Felicidades por esos {edad}! 🎂 Que los celebres como mereces. Un abrazo de Mari, Cova y Sara, desde tu agencia Occident.';
+const OLD_ROUND=['¡Felicidades por esos {edad}! Que los celebres como mereces. Un abrazo de Mari, Cova y Sara, desde tu agencia Occident'];
 const ROUND_AGES=[20,30,40,50,60,65,70,75,80,85,90,95,100];
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
 const STALE_DAYS=30;
 function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){state.storageOK=false;return false;}}
 function probeStorage(){try{localStorage.setItem('cumples-clientes:probe','1');localStorage.removeItem('cumples-clientes:probe');return true;}catch(e){return false;}}
-function loadTplR(t){return {text:t&&typeof t.text==='string'&&t.text.trim()?t.text:DEFAULT_ROUND};}
+function loadTplR(t){const x=t&&typeof t.text==='string'&&t.text.trim()?t.text:DEFAULT_ROUND;return {text:OLD_ROUND.indexOf(x)>=0?DEFAULT_ROUND:x};}
 function loadTpl(t){
   if(t&&typeof t.text==='string')return {text:OLD_DEFAULTS.indexOf(t.text)>=0?DEFAULT_MSG:t.text};
   if(t&&Array.isArray(t.items)&&t.items[t.active|0])return {text:t.items[t.active|0].text};
