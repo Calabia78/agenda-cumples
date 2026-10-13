@@ -148,6 +148,14 @@ textarea.field{resize:vertical;line-height:1.4}
 .more{display:block;margin:1rem auto 0}
 .bar{display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem}
 .panel{background:var(--surface);border-radius:1.1rem;box-shadow:var(--shadow);padding:1.1rem;margin-top:1rem}
+.tiles{display:grid;gap:.6rem;margin-top:1rem}
+.tile{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;background:var(--surface);border:0;border-radius:1.1rem;box-shadow:var(--shadow);padding:.9rem 1rem;cursor:pointer;color:var(--fg)}
+.tile .ic{flex:none;width:2.9rem;height:2.9rem;border-radius:.9rem;display:grid;place-items:center;background:var(--brand-a);color:#fff}
+.tile .tx{flex:1;min-width:0}
+.tile b{display:block;font-family:var(--font-display);font-size:1.02rem}
+.tile small{display:block;color:var(--muted);font-size:.85rem;line-height:1.3;margin-top:.1rem}
+.tile .chev{color:var(--muted);flex:none;display:grid}
+.tile .dot{flex:none;width:.7rem;height:.7rem;border-radius:50%;background:#E8112D;box-shadow:0 0 0 3px rgba(232,17,45,.18)}
 .panel h3{font-family:var(--font-display);font-size:1.1rem;margin:0 0 .35rem}
 .panel p{margin:.25rem 0 .75rem}
 .preview{background:var(--surface-2);border-radius:.8rem;padding:.7rem .85rem;font-size:.92rem;margin:.75rem 0!important;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -421,7 +429,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.12.4';
+const APP_VERSION='0.13.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -448,7 +456,7 @@ const savedC=lsGet(KEY_C);
 const hasReal=Array.isArray(savedC)&&savedC.length>0;
 const state={
   storageOK:probeStorage(),
-  view:'home',
+  view:'home',sec:null,
   contacts:hasReal?savedC:demoContacts(),
   demo:!hasReal,
   imported:+savedS.imported||0,
@@ -502,6 +510,7 @@ async function syncNotifications(){
 async function refreshNotifStatus(){
   if(!NATIVE||!LN)return;
   await notifPermission(false);
+  const tl=$('#t-avisos');if(tl)tl.textContent=notifTileText();
   const el=$('#notif-status');if(!el)return;
   if(notifPerm==='granted')el.innerHTML='<span class="msg-ok">Avisos activados.</span> <button class="btn" data-act="test-notif">Enviarme un aviso de prueba</button>';
   else el.innerHTML='<span class="msg-err">Los avisos están desactivados.</span> <button class="btn primary" data-act="enable-notif">Activar avisos</button><span class="muted small" style="display:block;margin-top:.4rem">Si no te sale la ventana para permitirlos, actívalos en Ajustes del móvil → Aplicaciones → Cumples → Notificaciones.</span>';
@@ -683,7 +692,7 @@ function listHTML(items,opts){return '<ul class="list">'+items.map(o=>rowHTML(o,
 /* ---------- Pantalla principal ---------- */
 function banners(){
   let h='';
-  if(state.demo)h+='<div class="banner"><span><strong>Datos de ejemplo.</strong> Son contactos inventados para que veas cómo funciona.</span><span class="banner-links"><button class="mini" data-act="import-now">Cargar tu CSV</button><button class="mini" data-act="settings">Añadirte para probar</button></span></div>';
+  if(state.demo)h+='<div class="banner"><span><strong>Datos de ejemplo.</strong> Son contactos inventados para que veas cómo funciona.</span><span class="banner-links"><button class="mini" data-act="import-now">Cargar tu CSV</button><button class="mini" data-act="settings" data-sec="mas">Añadirte para probar</button></span></div>';
   else if(state.imported){
     const days=Math.floor((Date.now()-state.imported)/86400000);
     if(days>=STALE_DAYS)h+='<div class="banner"><span>Hace '+days+' días que no actualizas la lista de clientes.</span><button class="mini" data-act="import-now">Actualizar lista</button></div>';
@@ -766,16 +775,18 @@ function viewAjustes(){
   const withMobile=state.contacts.filter(c=>(c.p||[]).length).length;
   const t=todayInfo(),hoy=String(t.d).padStart(2,'0')+'/'+String(t.m).padStart(2,'0');
   const last=state.imported?new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric'}).format(new Date(state.imported)):'';
-  let h='<div class="bar"><button class="icon-btn solid" data-act="back" aria-label="Volver">'+ICON_BACK+'</button><h2>Ajustes</h2></div>';
+  const P={};let h='';
   h+='<section class="panel"><h3>Mensaje de felicitación</h3><p class="muted small">Es el mismo para todos los clientes. Escribe {nombre} donde quieras que salga el nombre; si a un cliente le has puesto un apodo, sale el apodo. Siempre se puede cambiar en WhatsApp antes de enviar.</p>'
     +'<textarea id="msg" class="field" rows="4" aria-label="Mensaje de felicitación">'+esc(state.tpl.text)+'</textarea>'
     +'<p class="preview" id="msg-prev">'+esc(previewText(state.tpl.text))+'</p>'
     +'<button class="btn" data-act="reset-msg">Restaurar mensaje original</button></section>';
+  P.mensaje=h;h='';
   if(NATIVE){
     const th=loadTheme();
     h+='<section class="panel"><h3>Aspecto</h3><p class="muted small">Elige cómo quieres ver la app.</p><div class="btns">'
       +[['light','Claro'],['dark','Oscuro']].map(function(o){return '<button class="btn'+(th===o[0]?' primary':'')+'" data-act="theme" data-v="'+o[0]+'">'+o[1]+'</button>';}).join('')
       +'</div></section>';
+    P.aspecto=h;h='';
   }
   h+='<section class="panel"><h3>Lista de clientes</h3>'
     +'<p class="muted small">'+(real?fmtN(n)+' contactos, '+fmtN(withMobile)+' con móvil'+(last?'. Última actualización: '+esc(last)+'.':'.'):'Ahora mismo ves contactos de ejemplo.')+'</p>'
@@ -799,6 +810,7 @@ function viewAjustes(){
     if(m.ok)h+='<p style="margin:.75rem 0 0"><button class="btn primary" data-act="back">Ver los cumpleaños de hoy</button></p>';
   }
   h+='</section>';
+  P.clientes=h;h='';
   const plan=planNotifications(contactsAll(),state.sent,new Date(),21);
   const fmtDay=new Intl.DateTimeFormat('es-ES',{weekday:'short',day:'numeric',month:'short'});
   const hhmm=function(ms){const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
@@ -820,16 +832,19 @@ function viewAjustes(){
     +'<details class="more"><summary>Próximos avisos</summary>'+(dayRows?'<ul class="avisos">'+dayRows+'</ul>':'<p class="muted small">No hay avisos previstos en las próximas semanas.</p>')+'</details>'
     +(NATIVE?'<details class="more"><summary>¿No te llegan los avisos?</summary><p class="muted small">En Ajustes del móvil → Aplicaciones → Cumples → Batería, elige «Sin restricciones».</p></details>':'')
     +'</section>';
+  P.avisos=h;h='';
   h+='<section class="panel"><h3>Probar con tu propio móvil</h3><p class="muted small">Añade un contacto a mano: ponte a ti con la fecha de hoy y pulsa Felicitar en la pantalla principal. Los contactos añadidos a mano se conservan al actualizar la lista.</p>'
     +'<div class="form-grid"><label>Nombre<input id="m-n" class="field" autocomplete="off"></label><label>Apellidos<input id="m-a" class="field" autocomplete="off"></label>'
     +'<label>Cumpleaños (día/mes)<input id="m-f" class="field" inputmode="numeric" value="'+hoy+'" autocomplete="off"></label><label>Móvil<input id="m-t" class="field" type="tel" inputmode="tel" autocomplete="off"></label></div>'
     +'<p style="margin:.75rem 0 0"><button class="btn primary" data-act="add-manual">Añadir contacto</button></p>';
   if(state.manual.length)h+='<ul class="manual-list">'+state.manual.map(c=>'<li><span>'+esc(fullName(c))+' · '+c.d+'/'+c.m+(c.p&&c.p[0]?' · '+esc(fmtPhone(c.p[0])):'')+'</span><button class="btn" data-act="del-manual" data-id="'+esc(c.i)+'">Eliminar</button></li>').join('')+'</ul>';
   h+='</section>';
+  P.mano=h;h='';
   const ex=Object.keys(state.excl).map(k=>state.excl[k]).sort((a,b)=>fullName(a).localeCompare(fullName(b),'es'));
   h+='<section class="panel"><h3>Clientes descartados'+(ex.length?' ('+ex.length+')':'')+'</h3><p class="muted small">Los que marcas como «No es cliente nuestro» (por ejemplo, compartidos con otra oficina). No se avisa de su cumpleaños y, si vuelven a salir en una lista nueva, no se incluyen.</p>'
     +(ex.length?'<ul class="manual-list">'+ex.map(c=>'<li><span>'+esc(fullName(c))+' · '+c.d+'/'+c.m+'</span><button class="btn" data-act="excl-restore" data-id="'+esc(c.i)+'">Recuperar</button></li>').join('')+'</ul>':'<p class="muted small" style="margin:.5rem 0 0">Ninguno de momento.</p>')
     +'</section>';
+  P.descartados=h;h='';
   h+='<section class="panel"><h3>Copia de seguridad</h3><p class="muted small">La copia es un archivo con lo felicitado, los apodos y números añadidos, los contactos a mano, los descartados, los que no tienen WhatsApp y el mensaje. La lista de clientes no va incluida: se recupera volviendo a cargar el archivo del portal. El archivo contiene algunos datos de clientes, guárdalo solo donde sea privado.</p>'
     +'<p class="btn-row"><button class="btn" data-act="save-backup">Guardar copia</button> <button class="btn" data-act="share-backup">Enviar copia…</button></p>'
     +(NATIVE?'<p class="muted small" style="margin:.25rem 0 0">«Enviar copia» abre el menú de compartir: elige WhatsApp y el chat de la agencia. «Guardar copia» la deja en Documentos/Cumples.</p>':'')
@@ -838,8 +853,10 @@ function viewAjustes(){
     +'<p><button class="btn" data-act="restore-file">Restaurar desde un archivo</button><input id="restore-in" type="file" accept=".txt,.json,text/plain,application/json" hidden></p>'
     +(state.restore?'<div class="restore-box"><p style="margin:0 0 .5rem"><strong>'+esc(state.restore.summary)+'</strong></p><p style="margin:0"><button class="btn primary" data-act="restore-apply">Aplicar</button> <button class="btn" data-act="restore-cancel">Cancelar</button></p></div>':'')
     +'</section>';
+  P.copia=h;h='';
   h+='<section class="panel"><h3>Borrar datos</h3><p class="muted small">Elimina de este dispositivo los contactos, lo felicitado, los apodos, los números añadidos y el mensaje.</p>'
     +'<button class="btn danger'+(state.armed?' armed':'')+'" data-act="wipe">'+(state.armed?'Pulsa otra vez para confirmar':'Borrar todos los datos')+'</button></section>';
+  P.borrar=h;h='';
   if(NATIVE){
     const u=state.upd||{};
     let line='';
@@ -849,7 +866,46 @@ function viewAjustes(){
     else if(u.error)line='<span class="msg-err">No he podido comprobarlo. Revisa la conexión.</span>';
     h+='<section class="panel"><h3>Actualizaciones</h3><p class="muted small">Versión instalada: '+APP_VERSION+'</p><p style="margin:.4rem 0 .6rem">'+line+'</p><button class="btn" data-act="check-update"'+(u.busy?' disabled':'')+'>Buscar actualización</button></section>';
   }else h+='<p class="muted small" style="margin-top:1.25rem">Versión '+APP_VERSION+'</p>';
-  $view.innerHTML=h;
+  P.actual=h;
+  const SECS={
+    clientes:{t:'Lista de clientes',html:P.clientes},
+    mensaje:{t:'Mensaje y aspecto',html:P.mensaje+(P.aspecto||'')},
+    avisos:{t:'Avisos',html:P.avisos},
+    descartados:{t:'Clientes descartados',html:P.descartados},
+    copia:{t:'Copia de seguridad',html:P.copia},
+    mas:{t:'Más',html:P.mano+P.actual+P.borrar}
+  };
+  const sec=SECS[state.sec];
+  if(sec){
+    $view.innerHTML='<div class="bar"><button class="icon-btn solid" data-act="sec-back" aria-label="Volver a Ajustes">'+ICON_BACK+'</button><h2>'+esc(sec.t)+'</h2></div>'+sec.html;
+    return;
+  }
+  const ago=real&&state.imported?Math.floor((Date.now()-state.imported)/864e5):-1;
+  const when=ago<0?'':ago===0?'hoy':ago===1?'ayer':'hace '+ago+' días';
+  const u=state.upd||{};
+  const tiles=[
+    {k:'clientes',ic:SVG('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3.3 2.4-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.7c2.7 0 4.5 1.8 4.5 4.8"/>',24),t:'Lista de clientes',
+      sub:real?fmtN(n)+' clientes'+(when?' · actualizada '+when:''):'Datos de ejemplo · carga tu lista',dot:!real||ago>30},
+    {k:'mensaje',ic:SVG('<path d="M4 5.5h16v10.5H9.5L5.5 19.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>',24),t:'Mensaje y aspecto',
+      sub:'Texto de felicitación'+(NATIVE?' · Tema '+(loadTheme()==='dark'?'oscuro':'claro'):'')},
+    {k:'avisos',ic:SVG('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',24),t:'Avisos',
+      sub:notifTileText(),dot:NATIVE&&(notifPerm==='denied'||notifPerm==='error'||notifPerm==='prompt'),sid:'t-avisos'},
+    {k:'descartados',ic:SVG('<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>',24),t:'Clientes descartados',
+      sub:ex.length?ex.length+(ex.length===1?' descartado':' descartados'):'Ninguno de momento'},
+    {k:'copia',ic:SVG('<path d="M12 4v10M8 10.5l4 4 4-4"/><path d="M4.5 15v3.5h15V15"/>',24),t:'Copia de seguridad',
+      sub:NATIVE&&autoInfo()?'Última automática: '+autoInfo():'Guardar, enviar y restaurar'},
+    {k:'mas',ic:SVG('<circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/>',24),t:'Más',
+      sub:'Contactos de prueba, actualizaciones y borrar datos',dot:!!u.newer}
+  ];
+  $view.innerHTML='<div class="bar"><button class="icon-btn solid" data-act="back" aria-label="Volver">'+ICON_BACK+'</button><h2>Ajustes</h2></div>'
+    +'<div class="tiles">'+tiles.map(function(x){return '<button class="tile" data-act="sec" data-sec="'+x.k+'"><span class="ic">'+x.ic+'</span><span class="tx"><b>'+x.t+'</b><small'+(x.sid?' id="'+x.sid+'"':'')+'>'+esc(x.sub)+'</small></span>'+(x.dot?'<span class="dot" aria-label="Necesita atención"></span>':'')+'<span class="chev">'+SVG('<path d="M9 5l7 7-7 7"/>',20)+'</span></button>';}).join('')+'</div>'
+    +'<p class="muted small" style="margin-top:1.25rem;text-align:center">Versión '+APP_VERSION+'</p>';
+}
+function notifTileText(){
+  if(!NATIVE)return 'Solo funcionan en la app del móvil';
+  if(notifPerm==='granted')return 'Activados · 9:00 y 16:00';
+  if(notifPerm==='denied'||notifPerm==='error'||notifPerm==='prompt')return 'Desactivados · toca para activarlos';
+  return 'Comprobando…';
 }
 
 function render(){
@@ -857,7 +913,29 @@ function render(){
   (state.view==='ajustes'?viewAjustes:viewHome)();
   window.scrollTo(0,y);
 }
-function go(v){state.view=v;state.editing=null;state.q='';state.shown=40;render();window.scrollTo(0,0);if(v==='ajustes')refreshNotifStatus();}
+let navDepth=0;
+function go(v,sec){
+  state.view=v;state.sec=(v==='ajustes'&&sec)||null;state.editing=null;state.q='';state.shown=40;render();window.scrollTo(0,0);
+  if(v==='home'){if(navDepth>0){const d=navDepth;navDepth=0;try{history.go(-d);}catch(e){}}}
+  else{try{history.pushState({view:v,sec:state.sec},'');navDepth++;}catch(e){}}
+  if(v==='ajustes')refreshNotifStatus();
+}
+function goSec(sec){
+  state.sec=sec;state.editing=null;render();window.scrollTo(0,0);
+  try{history.pushState({view:'ajustes',sec:sec},'');navDepth++;}catch(e){}
+  if(sec==='avisos')refreshNotifStatus();
+}
+function secBack(){
+  if(navDepth>0){try{history.back();return;}catch(e){}}
+  state.sec=null;render();window.scrollTo(0,0);refreshNotifStatus();
+}
+window.addEventListener('popstate',function(e){
+  navDepth=Math.max(0,navDepth-1);
+  const st=e.state||{};
+  state.view=st.view||'home';state.sec=st.sec||null;state.editing=null;
+  render();window.scrollTo(0,0);
+  if(state.view==='ajustes')refreshNotifStatus();
+});
 
 /* ---------- Importación, contactos a mano y copia ---------- */
 function applyImport(res,added,removed,uri){
@@ -1027,9 +1105,11 @@ document.addEventListener('click',function(e){
     return;}
   const t=e.target.closest('[data-act]');if(!t)return;
   const act=t.dataset.act;
-  if(act==='settings')go('ajustes');
+  if(act==='settings')go('ajustes',t.dataset.sec);
+  else if(act==='sec')goSec(t.dataset.sec);
+  else if(act==='sec-back')secBack();
   else if(act==='theme'){const v=t.dataset.v;try{localStorage.setItem(KEY_T,v);}catch(err){}applyTheme(v);render();if(AG)AG.setTheme({mode:v}).catch(function(){});}
-  else if(act==='import-now'){go('ajustes');if(NATIVE&&AG)pickNative();else{const d=$('#drop');if(d)d.scrollIntoView({block:'center'});}}
+  else if(act==='import-now'){go('ajustes','clientes');if(NATIVE&&AG)pickNative();else{const d=$('#drop');if(d)d.scrollIntoView({block:'center'});}}
   else if(act==='pick-file')pickNative();
   else if(act==='check-update')checkUpdate(false);
   else if(act==='install-update')installUpdate();
