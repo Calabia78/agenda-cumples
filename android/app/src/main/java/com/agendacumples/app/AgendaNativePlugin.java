@@ -2,10 +2,15 @@ package com.agendacumples.app;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
@@ -124,6 +129,134 @@ public class AgendaNativePlugin extends Plugin {
             call.resolve(r);
         } catch (Exception e) {
             call.reject("No se pudo leer el archivo: " + e.getMessage());
+        }
+    }
+
+
+    private static byte[] utf8(String s) {
+        try {
+            return s.getBytes("UTF-8");
+        } catch (Exception e) {
+            return s.getBytes();
+        }
+    }
+
+    /** Guarda una copia de seguridad en Documentos/Cumples (sobrevive a desinstalar la app). */
+    @PluginMethod
+    public void saveBackup(PluginCall call) {
+        String name = call.getString("name");
+        String data = call.getString("data");
+        String prefix = call.getString("prefix", "");
+        int keep = call.getInt("keep", 0);
+        if (name == null || data == null || !name.matches("[A-Za-z0-9_.\\-]+")) {
+            call.reject("Datos de copia no válidos");
+            return;
+        }
+        try {
+            byte[] bytes = utf8(data);
+            String shown;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentResolver cr = getContext().getContentResolver();
+                Uri col = MediaStore.Files.getContentUri("external");
+                String rel = "Documents/Cumples";
+                try {
+                    cr.delete(col, MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?", new String[]{name, rel + "%"});
+                } catch (Exception ignored) {
+                }
+                ContentValues v = new ContentValues();
+                v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+                v.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+                v.put(MediaStore.MediaColumns.RELATIVE_PATH, rel);
+                Uri u = cr.insert(col, v);
+                if (u == null) throw new Exception("No se pudo crear el archivo");
+                OutputStream os = cr.openOutputStream(u);
+                if (os == null) throw new Exception("No se pudo escribir el archivo");
+                try {
+                    os.write(bytes);
+                } finally {
+                    os.close();
+                }
+                if (keep > 0 && !prefix.isEmpty()) {
+                    try {
+                        Cursor c = cr.query(col, new String[]{MediaStore.MediaColumns._ID},
+                                MediaStore.MediaColumns.DISPLAY_NAME + " LIKE ? AND " + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?",
+                                new String[]{prefix + "%", rel + "%"}, MediaStore.MediaColumns.DATE_ADDED + " DESC, " + MediaStore.MediaColumns._ID + " DESC");
+                        if (c != null) {
+                            try {
+                                int i = 0;
+                                while (c.moveToNext()) {
+                                    if (++i > keep) {
+                                        try {
+                                            cr.delete(ContentUris.withAppendedId(col, c.getLong(0)), null, null);
+                                        } catch (Exception ignored) {
+                                        }
+                                    }
+                                }
+                            } finally {
+                                c.close();
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                shown = "Documentos/Cumples/" + name;
+            } else {
+                File dir = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "Cumples");
+                if (!dir.exists()) dir.mkdirs();
+                File f = new File(dir, name);
+                OutputStream os = new FileOutputStream(f);
+                try {
+                    os.write(bytes);
+                } finally {
+                    os.close();
+                }
+                shown = "Documentos de la app/Cumples/" + name;
+            }
+            JSObject r = new JSObject();
+            r.put("saved", true);
+            r.put("path", shown);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("No se pudo guardar la copia: " + e.getMessage());
+        }
+    }
+
+    /** Abre el menú de compartir de Android con el archivo de la copia (WhatsApp, Drive, correo...). */
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        String name = call.getString("name");
+        String data = call.getString("data");
+        final Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("La app no está en primer plano");
+            return;
+        }
+        if (name == null || data == null || !name.matches("[A-Za-z0-9_.\\-]+")) {
+            call.reject("Datos de copia no válidos");
+            return;
+        }
+        try {
+            File dir = new File(activity.getCacheDir(), "backups");
+            if (!dir.exists()) dir.mkdirs();
+            File[] old = dir.listFiles();
+            if (old != null) for (File f : old) f.delete();
+            File f = new File(dir, name);
+            OutputStream os = new FileOutputStream(f);
+            try {
+                os.write(utf8(data));
+            } finally {
+                os.close();
+            }
+            Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", f);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("application/json");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.putExtra(Intent.EXTRA_SUBJECT, name);
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            activity.startActivity(Intent.createChooser(send, "Enviar copia"));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("No se pudo compartir la copia: " + e.getMessage());
         }
     }
 

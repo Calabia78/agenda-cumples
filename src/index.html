@@ -131,6 +131,8 @@ h2{font-family:var(--font-display);font-size:1.3rem;margin:0;letter-spacing:-.01
 .btns{display:flex;flex-wrap:wrap;gap:.5rem}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem}
 .manual-list{list-style:none;margin:.5rem 0 0;padding:0}
+.btn-row .btn{margin:0 .35rem .35rem 0}
+.restore-box{margin-top:.6rem;padding:.7rem .8rem;border:1px solid var(--line,#ddd);border-radius:10px;background:rgba(217,0,40,.05)}
 .manual-list li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem 0;border-top:1px solid var(--line)}
 
 .banner{background:var(--today-soft);border-radius:1rem;padding:.75rem .95rem;margin-top:1rem;display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;justify-content:space-between}
@@ -419,7 +421,7 @@ function waLink(wa,text){return 'https://wa.me/'+wa+'?text='+encodeURIComponent(
 // </LOGIC>
 
 /* ---------- Estado y almacenamiento ---------- */
-const APP_VERSION='0.11.1';
+const APP_VERSION='0.12.0';
 const KEY_C='cumples-clientes:contactos:v1',KEY_S='cumples-clientes:estado:v1';
 const DEFAULT_MSG='🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Cova y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂';
 const OLD_DEFAULTS=['🎂 ¡Feliz cumpleaños, {nombre}! Un abrazo de Mari, Covadonga y Sara, de tu agencia Occident. ¡Que disfrutes mucho de tu día! 🎂','¡Feliz cumpleaños, {nombre}! 🎂 Te mandamos un abrazo y deseamos que disfrutes mucho de tu día.'];
@@ -458,7 +460,7 @@ const state={
   confirmExcl:null,
   tpl:loadTpl(savedS.tpl),
   q:'',shown:40,
-  editing:null,opened:{},importMsg:null,pending:null,backupOut:'',armed:false
+  editing:null,opened:{},importMsg:null,pending:null,restore:null,armed:false
 };
 function persist(){lsSet(KEY_S,{sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa,imported:state.imported});scheduleSync();}
 function contactsAll(){return state.contacts.concat(state.manual);}
@@ -574,6 +576,7 @@ async function bootNative(){
   let asked=false;try{asked=localStorage.getItem(KEY_N)==='1';}catch(e){}
   if(!asked){try{localStorage.setItem(KEY_N,'1');}catch(e){}await notifPermission(true);}
   await syncNotifications();
+  autoBackup();
   checkUpdate(true);
 }
 
@@ -827,12 +830,14 @@ function viewAjustes(){
   h+='<section class="panel"><h3>Clientes descartados'+(ex.length?' ('+ex.length+')':'')+'</h3><p class="muted small">Los que marcas como «No es cliente nuestro» (por ejemplo, compartidos con otra oficina). No se avisa de su cumpleaños y, si vuelven a salir en una lista nueva, no se incluyen.</p>'
     +(ex.length?'<ul class="manual-list">'+ex.map(c=>'<li><span>'+esc(fullName(c))+' · '+c.d+'/'+c.m+'</span><button class="btn" data-act="excl-restore" data-id="'+esc(c.i)+'">Recuperar</button></li>').join('')+'</ul>':'<p class="muted small" style="margin:.5rem 0 0">Ninguno de momento.</p>')
     +'</section>';
-  h+='<section class="panel"><h3>Copia de seguridad</h3><p class="muted small">Guarda lo felicitado, los apodos, los números añadidos, los contactos a mano, los clientes descartados y el mensaje. Los contactos del CSV se recuperan volviendo a cargarlo. Copia el texto y guárdalo donde quieras, por ejemplo en una nota.</p>'
-    +'<p><button class="btn" data-act="gen-backup">Generar copia</button></p>'
-    +(state.backupOut?'<textarea id="backup-out" class="field" rows="4" readonly aria-label="Texto de la copia">'+esc(state.backupOut)+'</textarea><p style="margin-top:.5rem"><button class="btn" data-act="copy-backup">Copiar al portapapeles</button></p>':'')
-    +'<p class="muted small" style="margin-top:1rem">Para restaurar, pega aquí el texto de una copia:</p>'
-    +'<textarea id="backup-in" class="field" rows="3" placeholder="Pega la copia aquí" aria-label="Pegar copia de seguridad"></textarea>'
-    +'<p style="margin-top:.5rem"><button class="btn" data-act="restore">Restaurar copia</button></p></section>';
+  h+='<section class="panel"><h3>Copia de seguridad</h3><p class="muted small">La copia es un archivo con lo felicitado, los apodos y números añadidos, los contactos a mano, los descartados, los que no tienen WhatsApp y el mensaje. La lista de clientes no va incluida: se recupera volviendo a cargar el archivo del portal. El archivo contiene algunos datos de clientes, guárdalo solo donde sea privado.</p>'
+    +'<p class="btn-row"><button class="btn" data-act="save-backup">Guardar copia</button> <button class="btn" data-act="share-backup">Enviar copia…</button></p>'
+    +(NATIVE?'<p class="muted small" style="margin:.25rem 0 0">«Enviar copia» abre el menú de compartir: elige WhatsApp y el chat de la agencia. «Guardar copia» la deja en Documentos/Cumples.</p>':'')
+    +(NATIVE?'<p class="muted small" style="margin:.5rem 0 0">'+(autoInfo()?'Última copia automática: '+esc(autoInfo())+'.':'Todavía no hay copia automática; se hace sola al abrir la app cada día.')+'</p>':'')
+    +'<p class="muted small" style="margin:1rem 0 .4rem">Para volver a una copia:</p>'
+    +'<p><button class="btn" data-act="restore-file">Restaurar desde un archivo</button><input id="restore-in" type="file" accept=".json,application/json,text/plain" hidden></p>'
+    +(state.restore?'<div class="restore-box"><p style="margin:0 0 .5rem"><strong>'+esc(state.restore.summary)+'</strong></p><p style="margin:0"><button class="btn primary" data-act="restore-apply">Aplicar</button> <button class="btn" data-act="restore-cancel">Cancelar</button></p></div>':'')
+    +'</section>';
   h+='<section class="panel"><h3>Borrar datos</h3><p class="muted small">Elimina de este dispositivo los contactos, lo felicitado, los apodos, los números añadidos y el mensaje.</p>'
     +'<button class="btn danger'+(state.armed?' armed':'')+'" data-act="wipe">'+(state.armed?'Pulsa otra vez para confirmar':'Borrar todos los datos')+'</button></section>';
   if(NATIVE){
@@ -919,17 +924,93 @@ function saveEditor(id){
   if(alias||tel)state.over[id]={alias:alias,tel:tel};else delete state.over[id];
   state.editing=null;persist();render();toast('Guardado');
 }
-function backupText(){return JSON.stringify({v:4,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa});}
-function restoreBackup(raw){
+function backupObj(){return {app:'cumples',v:4,fecha:new Date().toISOString(),version:APP_VERSION,sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};}
+function pad2(n){return (n<10?'0':'')+n;}
+function dayStr(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+function backupName(){return 'Cumples_copia_'+dayStr()+'.json';}
+function parseBackup(raw){
   let o;
-  try{o=JSON.parse(raw);}catch(e){toast('El texto no es una copia válida');return;}
-  if(!o||[1,2,3,4].indexOf(o.v)<0||typeof o.sent!=='object'){toast('El texto no es una copia válida');return;}
+  try{o=JSON.parse(raw);}catch(e){return null;}
+  if(!o||typeof o!=='object'||[1,2,3,4].indexOf(o.v)<0||!o.sent||typeof o.sent!=='object')return null;
+  return o;
+}
+function backupSummary(o){
+  const n=function(x){return x&&typeof x==='object'?Object.keys(x).length:0;};
+  const f=o.fecha?new Date(o.fecha):null;
+  const fs=f&&!isNaN(f)?f.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}):'fecha desconocida';
+  return 'Copia del '+fs+' · '+n(o.sent)+' felicitados · '+n(o.over)+' apodos o números · '+(Array.isArray(o.manual)?o.manual.length:0)+' contactos a mano · '+n(o.excl)+' descartados · '+n(o.nowa)+' sin WhatsApp';
+}
+function applyBackup(o){
   state.sent=o.sent||{};
   if(o.v>=2){state.over=(o.over&&typeof o.over==='object')?o.over:{};state.manual=Array.isArray(o.manual)?o.manual:[];}
-  if(o.v>=4)state.nowa=(o.nowa&&typeof o.nowa==='object')?o.nowa:{};
-  if(o.v>=4){state.excl=(o.excl&&typeof o.excl==='object')?o.excl:{};state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);}
+  if(o.v>=4){
+    state.nowa=(o.nowa&&typeof o.nowa==='object')?o.nowa:{};
+    state.excl=(o.excl&&typeof o.excl==='object')?o.excl:{};
+    state.contacts=state.contacts.filter(c=>!state.excl[c.i]);if(!state.demo)lsSet(KEY_C,state.contacts);
+  }
   if(o.tpl)state.tpl=loadTpl(o.tpl);
-  persist();render();toast('Copia restaurada');
+  persist();
+}
+function webDownload(name,data){
+  const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1000);
+}
+async function saveBackupNow(){
+  const name=backupName(),data=JSON.stringify(backupObj(),null,1);
+  if(NATIVE&&AG){
+    try{const r=await AG.saveBackup({name:name,data:data});toast('Copia guardada en Documentos/Cumples');return r;}
+    catch(e){toast('No he podido guardar la copia: '+((e&&e.message)||e));}
+  }else{webDownload(name,data);toast('Copia descargada');}
+}
+async function shareBackupNow(){
+  const name=backupName(),data=JSON.stringify(backupObj(),null,1);
+  if(NATIVE&&AG){
+    try{await AG.shareFile({name:name,data:data});}
+    catch(e){toast('No he podido enviar la copia: '+((e&&e.message)||e));}
+    return;
+  }
+  try{
+    const f=new File([data],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Copia de Cumples'});return;}
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  webDownload(name,data);toast('Copia descargada');
+}
+function loadRestoreText(text){
+  const o=parseBackup(text);
+  if(!o){state.restore=null;render();toast('Ese archivo no es una copia válida');return;}
+  state.restore={obj:o,summary:backupSummary(o)};render();
+}
+async function restoreFromFile(){
+  if(NATIVE&&AG){
+    try{
+      const r=await AG.pickFile();
+      if(!r||r.cancelled)return;
+      loadRestoreText(new TextDecoder('utf-8').decode(b64ToBytes(r.data)));
+    }catch(e){toast('No se pudo leer el archivo');}
+  }else{const i=$('#restore-in');if(i)i.click();}
+}
+/* Copia automática: al abrir la app, una vez al día (y como mucho cada 3 h si hay cambios). Se guarda en Documentos/Cumples y se conservan las 3 últimas. */
+const KEY_A='cumples-clientes:autocopia:v1';
+function autoState(){try{return JSON.parse(localStorage.getItem(KEY_A)||'null')||{};}catch(e){return {};}}
+function autoInfo(){
+  const a=autoState();if(!a.ts)return '';
+  const d=new Date(a.ts);
+  return d.toLocaleDateString('es-ES',{day:'numeric',month:'long'})+' a las '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+}
+function hashStr(str){let h=5381;for(let i=0;i<str.length;i++)h=((h<<5)+h+str.charCodeAt(i))|0;return String(h);}
+async function autoBackup(){
+  if(!NATIVE||!AG||state.demo)return;
+  const body={sent:state.sent,tpl:state.tpl,over:state.over,manual:state.manual,excl:state.excl,nowa:state.nowa};
+  const hash=hashStr(JSON.stringify(body));
+  const a=autoState(),now=Date.now(),day=dayStr();
+  if(a.hash===hash)return;
+  if(a.day===day&&a.ts&&now-a.ts<3*3600*1000)return;
+  try{
+    await AG.saveBackup({name:'Cumples_copia_automatica_'+day+'.json',data:JSON.stringify(backupObj(),null,1),prefix:'Cumples_copia_automatica_',keep:3});
+    try{localStorage.setItem(KEY_A,JSON.stringify({day:day,hash:hash,ts:now}));}catch(e){}
+    if(state.view==='ajustes')render();
+  }catch(e){}
 }
 
 /* ---------- Eventos ---------- */
@@ -1002,20 +1083,15 @@ document.addEventListener('click',function(e){
   else if(act==='import-cancel'){state.pending=null;render();}
   else if(act==='more'){state.shown+=40;renderHomeBody();}
   else if(act==='reset-msg'){state.tpl={text:DEFAULT_MSG};persist();render();toast('Mensaje original restaurado');}
-  else if(act==='gen-backup'){
-    state.backupOut=backupText();render();
-    const ta=$('#backup-out');if(ta){ta.focus();ta.select();}
-  }
-  else if(act==='copy-backup'){
-    const ta=$('#backup-out');
-    const fallback=function(){if(ta){ta.focus();ta.select();}toast('Selecciona el texto y cópialo con Ctrl+C');};
-    try{navigator.clipboard.writeText(state.backupOut).then(function(){toast('Copia en el portapapeles');},fallback);}catch(err){fallback();}
-  }
-  else if(act==='restore'){const ta=$('#backup-in');restoreBackup(ta?ta.value.trim():'');}
+  else if(act==='save-backup')saveBackupNow();
+  else if(act==='share-backup')shareBackupNow();
+  else if(act==='restore-file')restoreFromFile();
+  else if(act==='restore-apply'&&state.restore){applyBackup(state.restore.obj);state.restore=null;render();toast('Copia restaurada');}
+  else if(act==='restore-cancel'){state.restore=null;render();}
   else if(act==='wipe'){
     if(!state.armed){state.armed=true;render();setTimeout(function(){if(state.armed){state.armed=false;if(state.view==='ajustes')render();}},5000);return;}
     try{localStorage.removeItem(KEY_C);localStorage.removeItem(KEY_S);}catch(err){}
-    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.nowa={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.backupOut='';state.armed=false;
+    state.contacts=demoContacts();state.demo=true;state.imported=0;state.sent={};state.over={};state.manual=[];state.excl={};state.nowa={};state.confirmExcl=null;state.opened={};state.editing=null;state.importMsg=null;state.pending=null;state.restore=null;state.armed=false;
     state.tpl={text:DEFAULT_MSG};
     scheduleSync();render();toast('Datos borrados');
   }
@@ -1028,6 +1104,7 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   const t=e.target;
   if(t.id==='file'){handleFile(t.files&&t.files[0]);}
+  else if(t.id==='restore-in'&&t.files&&t.files[0]){t.files[0].text().then(loadRestoreText);}
 });
 ['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,function(e){const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('over');}}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,function(e){const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.remove('over');if(ev==='drop'&&e.dataTransfer&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);}}));
@@ -1050,7 +1127,7 @@ function maybeShowSmsBar(){
 let lastDay=todayInfo().ms;
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&todayInfo().ms!==lastDay){lastDay=todayInfo().ms;if(state.demo)state.contacts=demoContacts();render();}
-  if(document.visibilityState==='visible'){scheduleSync();maybeShowSmsBar();}
+  if(document.visibilityState==='visible'){scheduleSync();maybeShowSmsBar();autoBackup();}
 });
 window.addEventListener('focus',function(){maybeShowSmsBar();});
 
